@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ligtas Kababayan – Admin</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>.wrap{max-width:900px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:700px){.grid{grid-template-columns:1fr}}.acts{display:flex;gap:8px;margin-top:8px}.acts .btn{padding:10px}.sh input{width:90px;margin:0}</style>
+</head>
+<body>
+  <div class="wrap">
+    <div id="login" class="card" hidden>
+      <h2>Admin login</h2>
+      <label for="em">Email</label><input id="em" type="email" autocomplete="username">
+      <label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password">
+      <p id="err" style="color:#e0312b"></p>
+      <button class="btn" id="go" style="margin-top:8px">Sign in</button>
+    </div>
+    <div id="dash" hidden>
+      <div class="row"><h2 id="who">Barangay dashboard</h2><button class="btn sec" id="out" style="width:auto">Sign out</button></div>
+      <p>Vulnerable queue first. Each list is sorted by water level. New reports appear instantly.</p>
+      <div class="grid"><div><h3>Vulnerable queue</h3><div id="v"></div></div><div><h3>Normal queue</h3><div id="n"></div></div></div>
+      <h3>Evacuation center occupancy</h3><div id="sh"></div>
+    </div>
+  </div>
+  <script type="module" src="/js/admin.js"></script>
+</body>
+</html>
