@@ -1,6 +1,7 @@
 // Admin dashboard: Supabase Auth login, Row Level Security limits data to the
-// admin's barangay, Realtime pushes new SOS, and the sender's street address is
-// looked up from their GPS point (OpenStreetMap Nominatim) and saved on the report.
+// admin's barangay, Realtime pushes new SOS, every sender is shown as a pin on a map,
+// and the sender's street address is looked up from their GPS point (OpenStreetMap
+// Nominatim) and saved on the report.
 import { sb } from "./api.js";
 
 // ---------- helpers ----------
@@ -100,6 +101,88 @@ function fillAddresses(reports) {
   }
 }
 
+// ---------- map ----------
+// One pin per open report: red = vulnerable, blue = normal, faded = acknowledged.
+let map, layer, fitted = false;
+const pins = new Map(); // report id -> { marker, cls, report }
+
+function ensureMap() {
+  if (typeof L === "undefined") {
+    // Leaflet could not load (no internet): the cards and address lines still work
+    $("#map").hidden = true;
+    return;
+  }
+  if (!map) {
+    map = L.map("map").setView([12.0667, 124.6044], 12);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "© OpenStreetMap contributors",
+    }).addTo(map);
+    layer = L.layerGroup().addTo(map);
+  }
+  map.invalidateSize(); // the map was hidden until the admin signed in
+}
+
+const popupHtml = (r) =>
+  `<b>${esc(r.code)}</b><br>${LEVEL[r.level]}${r.vul.length ? " · vulnerable" : ""}` +
+  `<br>${esc(addrLabel(r))}<br>${coords(r)}`;
+
+function highlightCard(id) {
+  const el = document.getElementById(`rc${id}`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  el.classList.add("hl");
+  setTimeout(() => el.classList.remove("hl"), 2500);
+}
+
+function drawMap(list) {
+  if (!map) return;
+  const seen = new Set();
+
+  for (const r of list) {
+    seen.add(r.id);
+    const cls = `rp ${r.vul.length ? "v" : "n"}${r.status === "ack" ? " ack" : ""}`;
+    const pin = pins.get(r.id);
+
+    if (!pin) {
+      const marker = L.marker([r.lat, r.lng], { icon: L.divIcon({ className: cls, iconSize: [22, 22] }) })
+        .addTo(layer)
+        .bindPopup(() => popupHtml(pins.get(r.id).report));
+      marker.on("click", () => highlightCard(r.id));
+      pins.set(r.id, { marker, cls, report: r });
+    } else {
+      pin.report = r;
+      if (pin.cls !== cls) {
+        pin.marker.setIcon(L.divIcon({ className: cls, iconSize: [22, 22] }));
+        pin.cls = cls;
+      }
+    }
+  }
+
+  // Reports marked Rescued disappear from the map
+  for (const [id, pin] of pins) {
+    if (!seen.has(id)) {
+      layer.removeLayer(pin.marker);
+      pins.delete(id);
+    }
+  }
+
+  // Zoom to the reports the first time only, so the admin's own panning is never undone
+  if (!fitted && list.length) {
+    map.fitBounds(list.map((r) => [r.lat, r.lng]), { padding: [40, 40], maxZoom: 17 });
+    fitted = true;
+  }
+}
+
+// "Show on map" link on a card
+function focusReport(id) {
+  const pin = pins.get(Number(id));
+  if (!pin || !map) return;
+  $("#map").scrollIntoView({ behavior: "smooth", block: "center" });
+  map.setView([pin.report.lat, pin.report.lng], 18);
+  pin.marker.openPopup();
+}
+
 // ---------- templates ----------
 function reportCard(r) {
   const time = new Date(r.created_at).toLocaleTimeString();
@@ -112,7 +195,7 @@ function reportCard(r) {
       : `<span class="tag">Acknowledged</span>`;
 
   return `
-    <div class="card">
+    <div class="card" id="rc${r.id}">
       <div class="row">
         <b>${esc(r.code)}</b>
         <span class="tag ${r.level >= 4 ? "v" : ""}">${LEVEL[r.level]}</span>
@@ -121,7 +204,7 @@ function reportCard(r) {
       <p style="color:var(--tx)"><b>Address:</b> <span id="ad${r.id}">${esc(addrLabel(r))}</span></p>
       ${vulnerable}
       <p>${esc(r.name)} ${esc(r.phone)} ${esc(r.descr)}</p>
-      <p><a target="_blank" rel="noopener" href="${mapUrl}">Open in Google Maps</a> · ${coords(r)}</p>
+      <p><a href="#" data-focus="${r.id}">Show on map</a> · <a target="_blank" rel="noopener" href="${mapUrl}">Open in Google Maps</a> · ${coords(r)}</p>
       <div class="acts">
         ${ackButton}
         <button class="btn" data-id="${r.id}" data-s="done">Rescued</button>
@@ -161,6 +244,7 @@ async function loadReports() {
   const list = data.sort(byPriority);
   $("#v").innerHTML = renderList(list.filter((r) => r.vul.length));
   $("#n").innerHTML = renderList(list.filter((r) => !r.vul.length));
+  drawMap(list);
   fillAddresses(list);
 }
 
@@ -195,6 +279,7 @@ async function show() {
   $("#login").hidden = !!session;
   $("#dash").hidden = !session;
   if (!session) return;
+  ensureMap();
 
   const { data: me } = await sb.from("admins").select("barangays(name)").maybeSingle();
   $("#who").textContent = me ? `${me.barangays?.name} dashboard` : "Not set up as an admin yet";
@@ -239,6 +324,12 @@ $("#go").onclick = signIn;
 $("#out").onclick = signOut;
 
 document.addEventListener("click", (e) => {
+  const focusLink = e.target.closest("[data-focus]");
+  if (focusLink) {
+    e.preventDefault();
+    return focusReport(focusLink.dataset.focus);
+  }
+
   const reportBtn = e.target.closest("[data-id]");
   if (reportBtn) return setReportStatus(reportBtn.dataset.id, reportBtn.dataset.s);
 

@@ -4,8 +4,23 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ligtas Kababayan – Admin</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="/css/style.css">
-  <style>.wrap{max-width:900px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:700px){.grid{grid-template-columns:1fr}}.acts{display:flex;gap:8px;margin-top:8px}.acts .btn{padding:10px}.sh input{width:90px;margin:0}</style>
+  <style>
+    .wrap{max-width:900px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    @media(max-width:700px){.grid{grid-template-columns:1fr}}
+    .acts{display:flex;gap:8px;margin-top:8px}
+    .acts .btn{padding:10px}
+    .sh input{width:90px;margin:0}
+    #map{height:340px;border-radius:14px;border:1px solid var(--bd);margin:10px 0 4px}
+    .rp{width:22px;height:22px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px rgba(0,0,0,.3)}
+    .rp.v{background:#e0312b}
+    .rp.n{background:#0b3a63}
+    .rp.ack{opacity:.5}
+    .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin:0 4px 0 8px}
+    .card.hl{outline:3px solid var(--sos)}
+  </style>
 </head>
 <body>
   <div class="wrap">
@@ -19,10 +34,13 @@
     <div id="dash" hidden>
       <div class="row"><h2 id="who">Barangay dashboard</h2><button class="btn sec" id="out" style="width:auto">Sign out</button></div>
       <p>Vulnerable queue first. Each list is sorted by water level. New reports appear instantly.</p>
+      <div id="map"></div>
+      <p style="font-size:13px"><span class="dot" style="background:#e0312b;margin-left:0"></span>Vulnerable<span class="dot" style="background:#0b3a63"></span>Normal<span class="dot" style="background:#aab7c3"></span>Faded = acknowledged</p>
       <div class="grid"><div><h3>Vulnerable queue</h3><div id="v"></div></div><div><h3>Normal queue</h3><div id="n"></div></div></div>
       <h3>Evacuation center occupancy</h3><div id="sh"></div>
     </div>
   </div>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   <script type="module" src="/js/admin.js"></script>
 </body>
 </html>

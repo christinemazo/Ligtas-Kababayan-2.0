@@ -94,7 +94,6 @@ export default function Sos({ onBack, onSend }) {
                      backgroundColor: level === l.k ? 'rgba(224,49,43,0.1)' : C.card }}
           >
             <Text style={{ fontWeight: '700', color: C.tx, fontSize: 16 }}>{l.n}</Text>
-            <Text style={{ color: C.mut, fontSize: 13 }}>{l.d}</Text>
           </Pressable>
         ))}
       </ScrollView>
