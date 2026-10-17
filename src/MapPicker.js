@@ -53,7 +53,7 @@ export default function MapPicker({ loc, onPick }) {
 
   // Send every new position to the map. The map only re-centres on GPS / last known, never after a hand-placed pin.
   useEffect(() => {
-    if (ready && loc) web.current?.postMessage(JSON.stringify({ type: 'loc', ...loc, pan: loc.src !== 'pin' }));
+    if (ready && loc) web.current?.postMessage(JSON.stringify({ type: 'loc', ...loc, pan: loc.src !== 'pin' || !!loc.pan }));
   }, [loc, ready]);
 
   const onMessage = (e) => {
@@ -88,4 +88,4 @@ export default function MapPicker({ loc, onPick }) {
       )}
     </View>
   );
-} 
+}
