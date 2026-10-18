@@ -1,254 +1,550 @@
-// ALL DESIGN LIVES IN THIS FILE: colors, text sizes, spacing, buttons, cards,
 
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-// ---------- colors ----------
+// ==========================================
+// LIGTAS KABABAYAN
+// BFP-INSPIRED FLOOD RESCUE THEME
+// ==========================================
+
 export const C = {
-  bg: '#eef3f7',        // screen background
-  card: '#ffffff',      // cards, bars, inputs
-  tx: '#0d2238',        // main text
-  mut: '#5b6f82',       // secondary text
-  bd: '#d3dde6',        // borders
-  pri: '#0b3a63',       // main buttons
-  sos: '#e0312b',       // SOS red
-  sosRing: 'rgba(224,49,43,0.25)',
-  sosSoft: 'rgba(224,49,43,0.1)',
-  sosGlow: 'rgba(224,49,43,.35)',
-  chip: '#e3edf5',      // light buttons, chips, notes
-  ok: '#1b8a5a',        // green (progress, shelter bar)
-  warn: '#c77700',      // note stripe
-  mapBg: '#dfe7ee',     // map while it loads
+  // Main colors
+  bg: '#F1F5F9',
+  card: '#FFFFFF',
+  tx: '#102A43',
+  mut: '#62758A',
+  bd: '#D6E0E9',
+
+  // Emergency service colors
+  pri: '#102A43',
+  sos: '#C62828',
+  sosRing: 'rgba(198,40,40,0.16)',
+  sosSoft: '#FFF0F0',
+  sosGlow: 'rgba(198,40,40,0.25)',
+
+  // Flood rescue colors
+  water: '#168AAD',
+  waterSoft: '#E4F5FB',
+  mapBg: '#DCECF3',
+
+  // Alerts and status
+  chip: '#EAF0F6',
+  ok: '#198754',
+  warn: '#B77900',
+  warning: '#FFC928',
+
+  // Extra colors for screen designs
+  navyDark: '#071B2D',
+  redDark: '#941B1B',
+  white: '#FFFFFF',
 };
 
-// ---------- styles ----------
-export const s = StyleSheet.create({
-  // text
-  h2: { fontSize: 22, fontWeight: '700', color: C.tx, marginVertical: 4 },
-  h3: { fontSize: 17, fontWeight: '700', color: C.tx, marginVertical: 6 },
-  muted: { color: C.mut, marginVertical: 3, fontSize: 15 },
-  label: { fontWeight: '700', fontSize: 14, color: C.tx, marginTop: 10 },
-  code: { fontWeight: '700', color: C.tx, fontSize: 16 },
-  bold: { fontWeight: '700' },
+// ==========================================
+// SHARED STYLES
+// ==========================================
 
-  // layout helpers
-  screen: { flex: 1 },
-  pad: { padding: 14 },
+export const s = StyleSheet.create({
+  // ---------- TEXT ----------
+
+  h2: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: C.tx,
+    marginVertical: 6,
+    letterSpacing: -0.4,
+  },
+
+  h3: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: C.tx,
+    marginVertical: 7,
+  },
+
+  muted: {
+    color: C.mut,
+    marginVertical: 4,
+    fontSize: 14,
+    lineHeight: 21,
+  },
+
+  label: {
+    fontWeight: '700',
+    fontSize: 14,
+    color: C.tx,
+    marginTop: 12,
+    marginBottom: 4,
+  },
+
+  code: {
+    fontWeight: '800',
+    color: C.sos,
+    fontSize: 17,
+  },
+
+  bold: {
+    fontWeight: '700',
+    color: C.tx,
+  },
+
+  // ---------- LAYOUT ----------
+
+  screen: {
+    flex: 1,
+    backgroundColor: C.bg,
+  },
+
+  pad: {
+    padding: 18,
+  },
+
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center' 
+    alignItems: 'center',
   },
+
   chips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 6
+    gap: 8,
+    marginTop: 8,
   },
-  mt6: { marginTop: 6 },
-  mt8: { marginTop: 8 },
-  mt12: { marginTop: 12 },
-  mb10: { marginBottom: 10 },
 
-  // inputs
+  mt6: {
+    marginTop: 6,
+  },
+
+  mt8: {
+    marginTop: 8,
+  },
+
+  mt12: {
+    marginTop: 12,
+  },
+
+  mb10: {
+    marginBottom: 10,
+  },
+
+  // ---------- INPUTS ----------
+
   input: {
     borderWidth: 1,
     borderColor: C.bd,
     borderRadius: 10,
-    padding: 11,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     fontSize: 16,
-    marginTop: 4,
-    color: C.tx 
+    marginTop: 5,
+    color: C.tx,
+    backgroundColor: C.card,
   },
-  textarea: { height: 70 },
 
-  // cards and notes
+  textarea: {
+    height: 100,
+    textAlignVertical: 'top',
+  },
+
+  // ---------- CARDS ----------
+
   card: {
     backgroundColor: C.card,
     borderWidth: 1,
     borderColor: C.bd,
     borderRadius: 14,
-    padding: 14,
-    marginBottom: 12
+    padding: 16,
+    marginBottom: 14,
+
+    // Android shadow
+    elevation: 2,
+
+    // iOS shadow
+    shadowColor: '#102A43',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 7,
   },
+
   cardCenter: {
-    alignItems: 'center'
+    alignItems: 'center',
   },
+
+  // ---------- INFORMATION NOTES ----------
+
   note: {
-    borderLeftWidth: 4,
-    borderLeftColor: C.warn,
-    backgroundColor: C.chip,
-    padding: 10, borderRadius: 6,
-    marginVertical: 8
+    borderLeftWidth: 5,
+    borderLeftColor: C.water,
+    backgroundColor: C.waterSoft,
+    padding: 13,
+    borderRadius: 9,
+    marginVertical: 9,
   },
+
   noteText: {
     color: C.tx,
-    fontSize: 15
+    fontSize: 14,
+    lineHeight: 21,
   },
 
-  // buttons
+  // ---------- BUTTONS ----------
+
   btn: {
-    borderRadius: 12,
-    padding: 14,
-    alignItems: 'center'
+    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+    backgroundColor: C.pri,
   },
-  btnSmall: { padding: 10, paddingHorizontal: 16 },
-  btnSos: { padding: 18 },
-  btnText: { fontWeight: '700', fontSize: 16, color: '#fff' },
-  btnTextSmall: { fontSize: 15 },
-  btnTextSos: { fontSize: 20 },
-  btnTextSec: { color: C.tx },
-  disabled: { opacity: 0.45 },
-  pressed: { opacity: 0.8 },
 
-  // chips (headcount, vulnerable)
+  btnSmall: {
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    minHeight: 40,
+  },
+
+  btnSos: {
+    paddingVertical: 18,
+    borderRadius: 14,
+    minHeight: 60,
+  },
+
+  btnText: {
+    fontWeight: '800',
+    fontSize: 16,
+    color: C.white,
+    textAlign: 'center',
+  },
+
+  btnTextSmall: {
+    fontSize: 14,
+  },
+
+  btnTextSos: {
+    fontSize: 19,
+    letterSpacing: 0.5,
+  },
+
+  btnTextSec: {
+    color: C.tx,
+  },
+
+  disabled: {
+    opacity: 0.5,
+  },
+
+  pressed: {
+    opacity: 0.82,
+  },
+
+  // ---------- CHIPS ----------
+
   chip: {
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: C.bd,
     backgroundColor: C.card,
-    borderRadius: 20,
-    paddingVertical: 7,
-    paddingHorizontal: 13
+    borderRadius: 24,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
   },
-  chipOn: { borderColor: C.pri, backgroundColor: C.chip },
-  chipText: { color: C.tx },
-  chipTextOn: { fontWeight: '700' },
 
-  // app shell
-  root: { flex: 1, backgroundColor: C.bg },
-  bannerWrap: { paddingHorizontal: 14 },
+  chipOn: {
+    borderColor: C.pri,
+    backgroundColor: C.chip,
+  },
+
+  chipText: {
+    color: C.tx,
+    fontSize: 14,
+  },
+
+  chipTextOn: {
+    fontWeight: '800',
+    color: C.pri,
+  },
+
+  // ---------- APP SHELL ----------
+
+  root: {
+    flex: 1,
+    backgroundColor: C.bg,
+  },
+
+  bannerWrap: {
+    paddingHorizontal: 14,
+    paddingTop: 6,
+    backgroundColor: C.bg,
+  },
+
   toast: {
     position: 'absolute',
     bottom: 30,
     alignSelf: 'center',
-    backgroundColor: C.tx,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 24
+    backgroundColor: C.navyDark,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    elevation: 6,
+    maxWidth: '92%',
   },
-  toastText: { color: '#fff' },
 
-  // home screen
+  toastText: {
+    color: C.white,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+
+  // ---------- HOME SCREEN ----------
+
   sosRing: {
-    width: 230,
-    height: 230,
-    borderRadius: 115,
+    width: 250,
+    height: 250,
+    borderRadius: 125,
     backgroundColor: C.sosRing,
+    borderWidth: 1,
+    borderColor: C.sosGlow,
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 14
-  },
-  sosBtn: { width: 210,
-    height: 210,
-    borderRadius: 105,
-    backgroundColor: C.sos,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  sosText: {
-    color: '#fff',
-    fontSize: 44,
-    fontWeight: '700'
+    marginVertical: 20,
   },
 
-  // SOS screen: top bar
+  sosBtn: {
+    width: 216,
+    height: 216,
+    borderRadius: 108,
+    backgroundColor: C.sos,
+    borderWidth: 5,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    elevation: 8,
+
+    shadowColor: C.sos,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+  },
+
+  sosText: {
+    color: C.white,
+    fontSize: 43,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+
+  // ---------- SOS SCREEN HEADER ----------
+
   sosHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8, padding: 14,
-    paddingBottom: 8
+    gap: 9,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 10,
+    backgroundColor: C.card,
+    borderBottomWidth: 1,
+    borderBottomColor: C.bd,
   },
+
   bar: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     height: 48,
     backgroundColor: C.card,
-    borderRadius: 24,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: C.bd,
     paddingLeft: 14,
-    paddingRight: 10
+    paddingRight: 10,
   },
-  barIcon: { fontSize: 16, marginRight: 8 },
-  barInput: { flex: 1, fontSize: 15, color: C.tx, paddingVertical: 0 },
-  barTarget: { marginLeft: 8 },
+
+  barIcon: {
+    fontSize: 17,
+    marginRight: 8,
+  },
+
+  barInput: {
+    flex: 1,
+    fontSize: 15,
+    color: C.tx,
+    paddingVertical: 0,
+  },
+
+  barTarget: {
+    marginLeft: 8,
+  },
+
   targetRing: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     borderWidth: 3,
-    borderColor: C.pri,
+    borderColor: C.water,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
+
   targetDot: {
     width: 9,
     height: 9,
     borderRadius: 5,
-    backgroundColor: C.pri
+    backgroundColor: C.water,
   },
 
-  // SOS screen: search results
+  // ---------- SEARCH RESULTS ----------
+
   results: {
     marginHorizontal: 14,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: C.bd,
-    borderRadius: 10,
-    backgroundColor: C.card
+    borderRadius: 12,
+    backgroundColor: C.card,
+    overflow: 'hidden',
   },
-  resultRow: { padding: 10 },
-  resultDivider: { borderTopWidth: 1, borderTopColor: C.bd },
-  resultText: { color: C.tx },
-  resultMsg: { padding: 10 },
 
-  // SOS screen: map and water level
-  mapWrap: { paddingHorizontal: 14 },
-  mapBox: { height: 210, borderRadius: 12, overflow: 'hidden' },
-  levelsContent: { padding: 14, paddingTop: 6 },
+  resultRow: {
+    padding: 13,
+  },
+
+  resultDivider: {
+    borderTopWidth: 1,
+    borderTopColor: C.bd,
+  },
+
+  resultText: {
+    color: C.tx,
+    fontSize: 14,
+  },
+
+  resultMsg: {
+    padding: 12,
+  },
+
+  // ---------- FLOOD MAP ----------
+
+  mapWrap: {
+    paddingHorizontal: 14,
+  },
+
+  mapBox: {
+    height: 230,
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: C.bd,
+    backgroundColor: C.mapBg,
+  },
+
+  levelsContent: {
+    padding: 16,
+    paddingTop: 8,
+  },
+
+  // ---------- WATER LEVEL OPTIONS ----------
+
   level: {
-    flexDirection: 'row', 
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  borderWidth: 2,
-  borderColor: C.bd,
-  backgroundColor: C.card,
-  borderRadius: 12,
-  paddingVertical: 11,
-  paddingHorizontal: 12,
-  marginBottom: 7
-},
-  levelOn: { borderColor: C.sos, backgroundColor: C.sosSoft },
-  levelName: { fontWeight: '700', color: C.tx, fontSize: 16 },
-  sendWrap: { padding: 14, paddingTop: 4 },
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: C.bd,
+    backgroundColor: C.card,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    marginBottom: 9,
+  },
 
-  // sent screen
-  steps: { flexDirection: 'row', gap: 6, marginVertical: 10 },
+  levelOn: {
+    borderColor: C.sos,
+    backgroundColor: C.sosSoft,
+  },
+
+  levelName: {
+    fontWeight: '800',
+    color: C.tx,
+    fontSize: 15,
+  },
+
+  sendWrap: {
+    padding: 16,
+    paddingTop: 6,
+  },
+
+  // ---------- SOS CONFIRMATION SCREEN ----------
+
+  steps: {
+    flexDirection: 'row',
+    gap: 7,
+    marginVertical: 14,
+  },
+
   step: {
     flex: 1,
-    borderTopWidth: 8,
+    borderTopWidth: 7,
     borderTopColor: C.bd,
-    paddingTop: 4
+    paddingTop: 7,
   },
-  stepDone: { borderTopColor: C.ok },
-  stepText: { textAlign: 'center', fontSize: 13, color: C.mut },
-  stepTextDone: { color: C.tx, fontWeight: '700' },
 
-  // shelters screen
-  shName: { fontWeight: '700', color: C.tx, flex: 1 },
-  shOpen: { fontWeight: '700', color: C.tx },
+  stepDone: {
+    borderTopColor: C.ok,
+  },
+
+  stepText: {
+    textAlign: 'center',
+    fontSize: 12,
+    color: C.mut,
+  },
+
+  stepTextDone: {
+    color: C.tx,
+    fontWeight: '800',
+  },
+
+  // ---------- EVACUATION SHELTERS ----------
+
+  shName: {
+    fontWeight: '800',
+    color: C.tx,
+    flex: 1,
+    fontSize: 15,
+  },
+
+  shOpen: {
+    fontWeight: '800',
+    color: C.ok,
+  },
+
   track: {
-    height: 10,
-    borderRadius: 5,
+    height: 11,
+    borderRadius: 6,
     backgroundColor: C.bd,
     overflow: 'hidden',
-    marginVertical: 4
+    marginVertical: 6,
   },
-  fill: { height: '100%', backgroundColor: C.ok },
 
-  // map
-  mapRoot: { flex: 1, backgroundColor: C.mapBg },
-  web: { flex: 1, backgroundColor: 'transparent' },
+  fill: {
+    height: '100%',
+    backgroundColor: C.ok,
+  },
+
+  // ---------- MAP CONTAINER ----------
+
+  mapRoot: {
+    flex: 1,
+    backgroundColor: C.mapBg,
+  },
+
+  web: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+
   mapOverlay: {
     position: 'absolute',
     left: 0,
@@ -258,24 +554,46 @@ export const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
-    backgroundColor: C.mapBg
+    backgroundColor: C.mapBg,
   },
-  mapOverlayText: { textAlign: 'center', color: C.tx },
+
+  mapOverlayText: {
+    textAlign: 'center',
+    color: C.tx,
+    fontSize: 14,
+  },
 });
 
+// Keep existing exports for compatibility.
 export const ui = s;
 
-// ---------- shared components ----------
-const BG = { pri: C.pri, sec: C.chip, sos: C.sos };
+// ==========================================
+// SHARED COMPONENTS
+// ==========================================
 
-export function Btn({ title, onPress, kind = 'pri', disabled, small, style }) {
+const BG = {
+  pri: C.pri,
+  sec: C.chip,
+  sos: C.sos,
+};
+
+export function Btn({
+  title,
+  onPress,
+  kind = 'pri',
+  disabled,
+  small,
+  style,
+}) {
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={title}
       style={({ pressed }) => [
         s.btn,
-        { backgroundColor: BG[kind] },
+        { backgroundColor: BG[kind] || C.pri },
         small && s.btnSmall,
         kind === 'sos' && s.btnSos,
         disabled && s.disabled,
@@ -283,23 +601,43 @@ export function Btn({ title, onPress, kind = 'pri', disabled, small, style }) {
         style,
       ]}
     >
-      <Text style={[s.btnText, small && s.btnTextSmall, kind === 'sos' && s.btnTextSos, kind === 'sec' && s.btnTextSec]}>
+      <Text
+        style={[
+          s.btnText,
+          small && s.btnTextSmall,
+          kind === 'sos' && s.btnTextSos,
+          kind === 'sec' && s.btnTextSec,
+        ]}
+      >
         {title}
       </Text>
     </Pressable>
   );
 }
 
-export const Card = ({ children, style }) => <View style={[s.card, style]}>{children}</View>;
+export const Card = ({ children, style }) => (
+  <View style={[s.card, style]}>
+    {children}
+  </View>
+);
 
 export const Note = ({ children }) => (
   <View style={s.note}>
-    <Text style={s.noteText}>{children}</Text>
+    <Text style={s.noteText}>
+      {children}
+    </Text>
   </View>
 );
 
 export const Chip = ({ label, on, onPress }) => (
-  <Pressable onPress={onPress} style={[s.chip, on && s.chipOn]}>
-    <Text style={[s.chipText, on && s.chipTextOn]}>{label}</Text>
+  <Pressable
+    onPress={onPress}
+    accessibilityRole="button"
+    accessibilityState={{ selected: !!on }}
+    style={[s.chip, on && s.chipOn]}
+  >
+    <Text style={[s.chipText, on && s.chipTextOn]}>
+      {label}
+    </Text>
   </Pressable>
 );

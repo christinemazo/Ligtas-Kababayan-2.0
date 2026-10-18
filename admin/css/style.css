@@ -525,3 +525,6 @@ strong {
         animation-duration: 0.01ms !important;
     }
 }
+body {
+    background: lime !important;
+}
