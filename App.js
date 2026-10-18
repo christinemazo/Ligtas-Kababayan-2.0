@@ -10,7 +10,7 @@ import * as Crypto from 'expo-crypto';
 import { getStatus, submitReport, updateDetails } from './src/api';
 import { enqueue, startAutoFlush, updateQueued } from './src/queue';
 import { failKind } from './src/constants';
-import { C, Note } from './src/ui';
+import { Note, s } from './src/ui';
 import Home from './src/screens/Home';
 import Sos from './src/screens/Sos';
 import Sent from './src/screens/Sent';
@@ -49,7 +49,7 @@ export default function App() {
       phone: profile.phone || '',
       head: '',
       vul: [],
-      desc: '',
+      desc: loc.label || '', // a searched address becomes the landmark
     };
     mineRef.current = { ...report, id: null, status: 'new', error: null, sending: true };
     setMine(mineRef.current);
@@ -99,7 +99,7 @@ export default function App() {
   );
 
   // Network banner
-  useEffect(() => NetInfo.addEventListener((s) => setOffline(s.isConnected === false)), []);
+  useEffect(() => NetInfo.addEventListener((state) => setOffline(state.isConnected === false)), []);
 
   // Poll status while the sent screen is open
   useEffect(() => {
@@ -129,10 +129,10 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
+      <SafeAreaView style={s.root}>
         <StatusBar style="dark" />
         {offline && (
-          <View style={{ paddingHorizontal: 14 }}>
+          <View style={s.bannerWrap}>
             <Note>No internet. You can still send SOS. It is saved on your phone and sent when signal returns.</Note>
           </View>
         )}
@@ -151,9 +151,8 @@ export default function App() {
         {scr === 'shelters' && <Shelters onBack={() => setScr('home')} />}
 
         {msg ? (
-          <View style={{ position: 'absolute', bottom: 30, alignSelf: 'center', backgroundColor: C.tx,
-                         paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24 }}>
-            <Text style={{ color: '#fff' }}>{msg}</Text>
+          <View style={s.toast}>
+            <Text style={s.toastText}>{msg}</Text>
           </View>
         ) : null}
       </SafeAreaView>

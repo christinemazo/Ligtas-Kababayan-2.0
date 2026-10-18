@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Linking, Platform, ScrollView, Text, TextInput, View } from 'react-native';
-import { Btn, C, Card, Chip, Note, ui } from '../ui';
+import { Btn, Card, Chip, Note, s } from '../ui';
 import { HEADS, STATUS, STEPS, VULS, smsText } from '../constants';
 
 export default function Sent({ mine, onSave, onTryAgain, onHome }) {
@@ -14,19 +14,19 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
   // The server will never accept this SOS (e.g. location outside every barangay)
   if (mine.error) {
     return (
-      <ScrollView contentContainerStyle={{ padding: 14 }}>
+      <ScrollView contentContainerStyle={s.pad}>
         <Card>
-          <Text style={ui.h2}>SOS not sent</Text>
+          <Text style={s.h2}>SOS not sent</Text>
           <Note>
             {mine.error === 'outside'
               ? 'Your location is outside the barangays covered by this system. '
               : 'The server could not accept this request. '}
             Call 911 or your barangay hotline now.
           </Note>
-          <Text style={ui.muted}>If the pin was wrong, go back, move it to your real location and send again.</Text>
+          <Text style={s.muted}>If the pin was wrong, go back, move it to your real location and send again.</Text>
         </Card>
         <Btn title="Try again" onPress={onTryAgain} />
-        <Btn kind="sec" title="Back to home" onPress={onHome} style={{ marginTop: 8 }} />
+        <Btn kind="sec" title="Back to home" onPress={onHome} style={s.mt8} />
       </ScrollView>
     );
   }
@@ -44,25 +44,26 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={{ padding: 14 }} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingView style={s.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView contentContainerStyle={s.pad} keyboardShouldPersistTaps="handled">
         <Card>
-          <Text style={ui.h2}>{sent ? 'Help request sent' : mine.sending ? 'Sending...' : 'Saved on your phone'}</Text>
-          {sent && <Text selectable style={{ fontWeight: '700', color: C.tx, fontSize: 16 }}>{mine.id}</Text>}
-          <View style={{ flexDirection: 'row', gap: 6, marginVertical: 10 }}>
-            {STEPS.map((t, n) => (
-              <View key={t} style={{ flex: 1, borderTopWidth: 8, paddingTop: 4,
-                                     borderTopColor: sent && n <= reached ? C.ok : C.bd }}>
-                <Text style={{ textAlign: 'center', fontSize: 13, color: sent && n <= reached ? C.tx : C.mut,
-                               fontWeight: sent && n <= reached ? '700' : '400' }}>{t}</Text>
-              </View>
-            ))}
+          <Text style={s.h2}>{sent ? 'Help request sent' : mine.sending ? 'Sending...' : 'Saved on your phone'}</Text>
+          {sent && <Text selectable style={s.code}>{mine.id}</Text>}
+          <View style={s.steps}>
+            {STEPS.map((t, n) => {
+              const done = sent && n <= reached;
+              return (
+                <View key={t} style={[s.step, done && s.stepDone]}>
+                  <Text style={[s.stepText, done && s.stepTextDone]}>{t}</Text>
+                </View>
+              );
+            })}
           </View>
           {waiting && (
             <>
               <Note>Waiting for signal. It sends by itself when the internet returns.</Note>
-              <Text style={ui.muted}>No data but you have cell signal? Text this to the barangay SMS number:</Text>
-              <Note><Text style={{ fontWeight: '700' }}>{sms}</Text></Note>
+              <Text style={s.muted}>No data but you have cell signal? Text this to the barangay SMS number:</Text>
+              <Note><Text style={s.bold}>{sms}</Text></Note>
               <Btn
                 kind="sec"
                 title="Open SMS"
@@ -77,22 +78,22 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
         </Card>
 
         <Card>
-          <Text style={ui.h3}>Add details (optional)</Text>
-          <Text style={ui.label}>Headcount</Text>
-          <View style={ui.chips}>
+          <Text style={s.h3}>Add details (optional)</Text>
+          <Text style={s.label}>Headcount</Text>
+          <View style={s.chips}>
             {HEADS.map((h) => <Chip key={h} label={h} on={head === h} onPress={() => setHead(h)} />)}
           </View>
-          <Text style={ui.label}>Someone vulnerable is with me</Text>
-          <View style={ui.chips}>
+          <Text style={s.label}>Someone vulnerable is with me</Text>
+          <View style={s.chips}>
             {VULS.map((v) => <Chip key={v} label={v} on={vul.includes(v)} onPress={() => toggleVul(v)} />)}
           </View>
-          <Text style={ui.label}>Name</Text>
-          <TextInput style={ui.input} value={name} onChangeText={setName} />
-          <Text style={ui.label}>Phone number</Text>
-          <TextInput style={ui.input} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-          <Text style={ui.label}>Landmark</Text>
-          <TextInput style={[ui.input, { height: 70 }]} value={desc} onChangeText={setDesc} multiline textAlignVertical="top" />
-          <Btn title="Save details" onPress={save} disabled={saving || !!mine.sending} style={{ marginTop: 12 }} />
+          <Text style={s.label}>Name</Text>
+          <TextInput style={s.input} value={name} onChangeText={setName} />
+          <Text style={s.label}>Phone number</Text>
+          <TextInput style={s.input} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+          <Text style={s.label}>Landmark</Text>
+          <TextInput style={[s.input, s.textarea]} value={desc} onChangeText={setDesc} multiline textAlignVertical="top" />
+          <Btn title="Save details" onPress={save} disabled={saving || !!mine.sending} style={s.mt12} />
         </Card>
 
         <Btn kind="sec" title="Back to home" onPress={onHome} />

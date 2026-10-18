@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Btn, C, Card, ui } from '../ui';
+import { Btn, Card, s } from '../ui';
 import { getShelters } from '../api';
 
 export default function Shelters({ onBack }) {
@@ -24,25 +24,25 @@ export default function Shelters({ onBack }) {
   }, []);
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 14 }}>
-      <Btn kind="sec" title="Back" onPress={onBack} style={{ marginBottom: 10 }} />
-      <Text style={ui.h2}>Evacuation centers</Text>
-      {list.length === 0 && <Text style={ui.muted}>No shelter list yet. Connect once to save it on your phone.</Text>}
-      {list.map((s) => {
-        const left = s.capacity - s.occupied;
-        const pct = Math.min(100, Math.round((s.occupied / s.capacity) * 100));
-        const updated = new Date(s.updated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    <ScrollView contentContainerStyle={s.pad}>
+      <Btn kind="sec" title="Back" onPress={onBack} style={s.mb10} />
+      <Text style={s.h2}>Evacuation centers</Text>
+      {list.length === 0 && <Text style={s.muted}>No shelter list yet. Connect once to save it on your phone.</Text>}
+      {list.map((sh) => {
+        const left = sh.capacity - sh.occupied;
+        const pct = Math.min(100, Math.round((sh.occupied / sh.capacity) * 100));
+        const updated = new Date(sh.updated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         return (
-          <Card key={s.id}>
-            <View style={ui.row}>
-              <Text style={{ fontWeight: '700', color: C.tx, flex: 1 }}>{s.name}</Text>
-              <Text style={{ fontWeight: '700', color: C.tx }}>{left > 0 ? `${left} open` : 'Full'}</Text>
+          <Card key={sh.id}>
+            <View style={s.row}>
+              <Text style={s.shName}>{sh.name}</Text>
+              <Text style={s.shOpen}>{left > 0 ? `${left} open` : 'Full'}</Text>
             </View>
-            <Text style={ui.muted}>{s.barangay} · updated {updated}</Text>
-            <View style={{ height: 10, borderRadius: 5, backgroundColor: C.bd, overflow: 'hidden', marginVertical: 4 }}>
-              <View style={{ width: `${pct}%`, height: '100%', backgroundColor: C.ok }} />
+            <Text style={s.muted}>{sh.barangay} · updated {updated}</Text>
+            <View style={s.track}>
+              <View style={[s.fill, { width: `${pct}%` }]} />
             </View>
-            <Text style={ui.muted}>{s.occupied} of {s.capacity} occupied</Text>
+            <Text style={s.muted}>{sh.occupied} of {sh.capacity} occupied</Text>
           </Card>
         );
       })}

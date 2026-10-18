@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Keyboard, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Btn, C, Note, ui } from '../ui';
+import { Btn, C, Note, s } from '../ui';
 import { LEVELS } from '../constants';
 import MapPicker from '../MapPicker';
 
@@ -33,9 +33,8 @@ async function reverseName(l) {
 
 // Target icon (ring + dot), drawn with Views so no icon package is needed
 const TargetIcon = () => (
-  <View style={{ width: 26, height: 26, borderRadius: 13, borderWidth: 3, borderColor: C.pri,
-                 alignItems: 'center', justifyContent: 'center' }}>
-    <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: C.pri }} />
+  <View style={s.targetRing}>
+    <View style={s.targetDot} />
   </View>
 );
 
@@ -170,18 +169,17 @@ export default function Sos({ onBack, onSend }) {
         : 'last known location, check the pin');
 
   return (
-    <View style={{ flex: 1 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 14, paddingBottom: 8 }}>
+    <View style={s.screen}>
+      <View style={s.sosHeader}>
         <Btn kind="sec" small title="Back" onPress={onBack} />
 
         {/* Search bar that shows where you are, like Alerto PH */}
-        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', height: 48, backgroundColor: C.card,
-                       borderRadius: 24, borderWidth: 1, borderColor: C.bd, paddingLeft: 14, paddingRight: 10 }}>
+        <View style={s.bar}>
           <Pressable onPress={search} hitSlop={8}>
-            <Text style={{ fontSize: 16, marginRight: 8 }}>🔍</Text>
+            <Text style={s.barIcon}>🔍</Text>
           </Pressable>
           <TextInput
-            style={{ flex: 1, fontSize: 15, color: C.tx, paddingVertical: 0 }}
+            style={s.barInput}
             placeholder={loc ? 'Search address or landmark' : 'Finding your location...'}
             placeholderTextColor={C.mut}
             value={query}
@@ -192,54 +190,43 @@ export default function Sos({ onBack, onSend }) {
             returnKeyType="search"
             onSubmitEditing={search}
           />
-          <Pressable onPress={useGps} hitSlop={8} style={{ marginLeft: 8 }}>
+          <Pressable onPress={useGps} hitSlop={8} style={s.barTarget}>
             <TargetIcon />
           </Pressable>
         </View>
       </View>
 
       {(results.length > 0 || !!msg || searching) && (
-        <View style={{ marginHorizontal: 14, marginBottom: 8, borderWidth: 1, borderColor: C.bd, borderRadius: 10, backgroundColor: C.card }}>
-          {searching && <Text style={[ui.muted, { padding: 10 }]}>Searching...</Text>}
+        <View style={s.results}>
+          {searching && <Text style={[s.muted, s.resultMsg]}>Searching...</Text>}
           {results.map((p, i) => (
-            <Pressable
-              key={p.place_id}
-              onPress={() => pick(p)}
-              style={{ padding: 10, borderTopWidth: i ? 1 : 0, borderTopColor: C.bd }}
-            >
-              <Text style={{ color: C.tx }} numberOfLines={2}>{shortName(p)}</Text>
+            <Pressable key={p.place_id} onPress={() => pick(p)} style={[s.resultRow, i > 0 && s.resultDivider]}>
+              <Text style={s.resultText} numberOfLines={2}>{shortName(p)}</Text>
             </Pressable>
           ))}
-          {!!msg && <Text style={[ui.muted, { padding: 10 }]}>{msg}</Text>}
+          {!!msg && <Text style={[s.muted, s.resultMsg]}>{msg}</Text>}
         </View>
       )}
 
-      <View style={{ paddingHorizontal: 14 }}>
-        <View style={{ height: 210, borderRadius: 12, overflow: 'hidden' }}>
+      <View style={s.mapWrap}>
+        <View style={s.mapBox}>
           <MapPicker loc={loc} onPick={(c) => place(c)} />
         </View>
         {denied && <Note>Location permission is off. Type your address or tap the map to place a pin.</Note>}
-        <Text style={[ui.muted, { marginTop: 6 }]}>{text}</Text>
-        <Text style={ui.muted}>Not exact? Drag the pin or tap the map.</Text>
+        <Text style={[s.muted, s.mt6]}>{text}</Text>
+        <Text style={s.muted}>Not exact? Drag the pin or tap the map.</Text>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 14, paddingTop: 6 }} keyboardShouldPersistTaps="handled">
-        <Text style={ui.h3}>How high is the water?</Text>
+      <ScrollView contentContainerStyle={s.levelsContent} keyboardShouldPersistTaps="handled">
+        <Text style={s.h3}>How high is the water?</Text>
         {LEVELS.map((l) => (
-          <Pressable
-            key={l.k}
-            onPress={() => setLevel(l.k)}
-            style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-                     borderWidth: 2, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 12, marginBottom: 7,
-                     borderColor: level === l.k ? C.sos : C.bd,
-                     backgroundColor: level === l.k ? 'rgba(224,49,43,0.1)' : C.card }}
-          >
-            <Text style={{ fontWeight: '700', color: C.tx, fontSize: 16 }}>{l.n}</Text>
+          <Pressable key={l.k} onPress={() => setLevel(l.k)} style={[s.level, level === l.k && s.levelOn]}>
+            <Text style={s.levelName}>{l.n}</Text>
           </Pressable>
         ))}
       </ScrollView>
 
-      <View style={{ padding: 14, paddingTop: 4 }}>
+      <View style={s.sendWrap}>
         <Btn kind="sos" title="SEND HELP" disabled={!level || !loc} onPress={() => onSend(level, loc)} />
       </View>
     </View>

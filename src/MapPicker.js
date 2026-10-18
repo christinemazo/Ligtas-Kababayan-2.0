@@ -3,13 +3,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { C, s } from './ui';
 
+// The pin colors inside the map page come from the same color list as the rest of the app
 const HTML = `<!DOCTYPE html><html><head>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 <style>
-  html,body,#m{height:100%;margin:0;background:#dfe7ee}
-  .pin{background:#e0312b;border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 3px rgba(224,49,43,.35)}
+  html,body,#m{height:100%;margin:0;background:${C.mapBg}}
+  .pin{background:${C.sos};border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 3px ${C.sosGlow}}
 </style></head><body><div id="m"></div>
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -51,7 +53,8 @@ export default function MapPicker({ loc, onPick }) {
   const [ready, setReady] = useState(false);
   const [nomap, setNomap] = useState(false);
 
-  // Send every new position to the map. The map only re-centres on GPS / last known, never after a hand-placed pin.
+  // Send every new position to the map. The map only re-centres on GPS / last known / a search result,
+  // never after the user taps or drags the pin.
   useEffect(() => {
     if (ready && loc) web.current?.postMessage(JSON.stringify({ type: 'loc', ...loc, pan: loc.src !== 'pin' || !!loc.pan }));
   }, [loc, ready]);
@@ -68,7 +71,7 @@ export default function MapPicker({ loc, onPick }) {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#dfe7ee' }}>
+    <View style={s.mapRoot}>
       <WebView
         ref={web}
         originWhitelist={['*']}
@@ -76,12 +79,11 @@ export default function MapPicker({ loc, onPick }) {
         javaScriptEnabled
         domStorageEnabled
         onMessage={onMessage}
-        style={{ flex: 1, backgroundColor: 'transparent' }}
+        style={s.web}
       />
       {nomap && (
-        <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center',
-                       justifyContent: 'center', padding: 16, backgroundColor: '#dfe7ee' }}>
-          <Text style={{ textAlign: 'center', color: '#0d2238' }}>
+        <View style={s.mapOverlay}>
+          <Text style={s.mapOverlayText}>
             Map needs internet. Your GPS location is still used, and you can still send SOS.
           </Text>
         </View>
