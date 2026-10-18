@@ -1,7 +1,3 @@
-// Admin dashboard: Supabase Auth login, Row Level Security limits data to the
-// admin's barangay, Realtime pushes new SOS, every sender is shown as a pin on a map,
-// and the sender's street address is looked up from their GPS point (OpenStreetMap
-// Nominatim) and saved on the report.
 import { sb } from "./api.js";
 
 // ---------- helpers ----------
@@ -27,7 +23,6 @@ function beep() {
 }
 
 // ---------- address lookup ----------
-// Nominatim is free but allows at most 1 request per second, so lookups run one at a time.
 // An address is saved on the report (reports.address) so it is only looked up once.
 const addrCache = new Map(); // report id -> address text found in this session
 const addrFailed = new Map(); // report id -> time of the last failed lookup
@@ -38,7 +33,6 @@ const RETRY_AFTER_MS = 5 * 60 * 1000;
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const coords = (r) => `${r.lat.toFixed(5)}, ${r.lng.toFixed(5)}`;
 
-// "Capoocan Old Road, Brgy. Capoocan, Calbayog City"
 function formatAddress(place) {
   const a = place.address || {};
   const road = a.road || a.pedestrian || a.path || a.residential || a.footway || "";
@@ -167,7 +161,6 @@ function drawMap(list) {
     }
   }
 
-  // Zoom to the reports the first time only, so the admin's own panning is never undone
   if (!fitted && list.length) {
     map.fitBounds(list.map((r) => [r.lat, r.lng]), { padding: [40, 40], maxZoom: 17 });
     fitted = true;
@@ -183,7 +176,6 @@ function focusReport(id) {
   pin.marker.openPopup();
 }
 
-// ---------- templates ----------
 function reportCard(r) {
   const time = new Date(r.created_at).toLocaleTimeString();
   const head = r.head ? ` · ${esc(r.head)} people` : "";

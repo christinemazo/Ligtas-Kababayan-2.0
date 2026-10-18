@@ -263,7 +263,6 @@ export const s = StyleSheet.create({
   mapOverlayText: { textAlign: 'center', color: C.tx },
 });
 
-// Old name, kept so any file that still says `ui.h2` keeps working
 export const ui = s;
 
 // ---------- shared components ----------

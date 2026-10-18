@@ -1,6 +1,3 @@
--- Ligtas Kababayan: run this whole file in Supabase > SQL Editor.
--- Safe to run again: it will not duplicate tables, policies or sample data.
-
 -- =====================================================================
 -- 1. EXTENSIONS AND SEQUENCES
 -- =====================================================================
@@ -15,11 +12,27 @@ create table if not exists barangays (
   name text unique not null,
   geom geometry(MultiPolygon, 4326)
 );
+alter table barangays add column if not exists municipality text default 'Calbayog City';
 
+-- One row per admin ACCOUNT. Many accounts can share the same barangay_id.
 create table if not exists admins (
   user_id     uuid primary key references auth.users on delete cascade,
   barangay_id int references barangays
 );
+alter table admins add column if not exists role       text not null default 'barangay_admin';
+alter table admins add column if not exists full_name  text default '';
+alter table admins add column if not exists created_at timestamptz default now();
+
+do $$ begin
+  alter table admins add constraint admins_role_chk
+    check (role in ('super_admin', 'barangay_admin'));
+exception when duplicate_object then null; end $$;
+
+-- a barangay admin MUST have a barangay; a super admin does not need one
+do $$ begin
+  alter table admins add constraint admins_barangay_chk
+    check (role = 'super_admin' or barangay_id is not null);
+exception when duplicate_object then null; end $$;
 
 create table if not exists shelters (
   id          serial primary key,
@@ -49,15 +62,17 @@ create table if not exists reports (
   created_at  timestamptz default now()
 );
 
+-- for databases created before these columns existed
+alter table reports add column if not exists address   text default '';
+alter table reports add column if not exists status_by uuid references auth.users on delete set null;  -- which admin last changed the status
+alter table reports add column if not exists status_at timestamptz;
+
 -- =====================================================================
 -- 3. INDEXES
 -- =====================================================================
--- for databases created before the address column existed
-alter table reports add column if not exists address text default '';
-
 create index if not exists barangays_geom_idx   on barangays using gist (geom);  -- fast "which barangay is this point in"
 create index if not exists reports_queue_idx    on reports (barangay_id, status);
-create index if not exists admins_user_idx      on admins (user_id);
+create index if not exists admins_barangay_idx  on admins (barangay_id);
 
 -- =====================================================================
 -- 4. SECURITY (Row Level Security: nobody reads anything unless a policy allows it)
@@ -67,10 +82,16 @@ alter table admins    enable row level security;
 alter table shelters  enable row level security;
 alter table reports   enable row level security;
 
--- The barangay the logged-in admin belongs to (null for citizens)
+-- The barangay the logged-in admin belongs to (null for citizens and super admins)
 create or replace function my_barangay()
 returns int language sql stable security definer set search_path = public as
 $$ select barangay_id from admins where user_id = (select auth.uid()) $$;
+
+-- True if the logged-in user is a super admin (e.g. city DRRMO)
+create or replace function is_super()
+returns boolean language sql stable security definer set search_path = public as
+$$ select exists (select 1 from admins
+                   where user_id = (select auth.uid()) and role = 'super_admin') $$;
 
 -- Public read
 drop policy if exists barangays_public on barangays;
@@ -79,23 +100,26 @@ create policy barangays_public on barangays for select using (true);
 drop policy if exists shelters_public on shelters;
 create policy shelters_public on shelters for select using (true);
 
--- Admins see their own row only
+-- Admins see themselves and the other admins of their own barangay (super admin sees all)
 drop policy if exists admins_self on admins;
-create policy admins_self on admins for select to authenticated
-  using (user_id = (select auth.uid()));
+drop policy if exists admins_team on admins;
+create policy admins_team on admins for select to authenticated
+  using (user_id = (select auth.uid())
+         or barangay_id = my_barangay()
+         or is_super());
 
 -- Admins read and update only their own barangay's reports and shelters
 drop policy if exists admin_read_reports on reports;
 create policy admin_read_reports on reports for select to authenticated
-  using (barangay_id = my_barangay());
+  using (barangay_id = my_barangay() or is_super());
 
 drop policy if exists admin_update_reports on reports;
 create policy admin_update_reports on reports for update to authenticated
-  using (barangay_id = my_barangay());
+  using (barangay_id = my_barangay() or is_super());
 
 drop policy if exists admin_update_shelters on shelters;
 create policy admin_update_shelters on shelters for update to authenticated
-  using (barangay_id = my_barangay());
+  using (barangay_id = my_barangay() or is_super());
 
 -- Citizens (anon) have NO direct access to reports. They use the functions in section 6.
 
@@ -104,6 +128,22 @@ revoke update on reports  from authenticated;
 revoke update on shelters from authenticated;
 grant  update (status, address)       on reports  to authenticated;
 grant  update (occupied, updated_at)  on shelters to authenticated;
+
+-- Automatically record WHICH admin acknowledged / rescued a report and WHEN.
+-- Done in the database so the browser cannot fake it.
+create or replace function stamp_report_status()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.status is distinct from old.status then
+    new.status_by := (select auth.uid());
+    new.status_at := now();
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists reports_stamp_status on reports;
+create trigger reports_stamp_status before update on reports
+  for each row execute function stamp_report_status();
 
 -- =====================================================================
 -- 5. REALTIME (live updates for the admin page)
@@ -170,6 +210,45 @@ select v.name, b.id, v.capacity, v.occupied
  where not exists (select 1 from shelters);
 
 -- =====================================================================
--- 8. MAKE AN ADMIN (after creating the user in Authentication > Users)
+-- 8. ASSIGN ADMIN ACCOUNTS TO BARANGAYS
+-- Steps: (1) Authentication > Users > Add user (email + password, tick "Auto confirm")
+--        (2) run add_admin() below with that email
+-- Run it again with a different email and the same barangay to add more admins to it.
+-- Run it again with the same email and a different barangay to move that account.
 -- =====================================================================
--- insert into admins(user_id, barangay_id) values ('PASTE-USER-UUID', 1);
+create or replace function add_admin(
+  p_email    text,
+  p_barangay text default null,
+  p_role     text default 'barangay_admin',
+  p_name     text default '')
+returns text language plpgsql security definer set search_path = public, auth as $$
+declare u uuid; b int;
+begin
+  select id into u from auth.users where lower(email) = lower(p_email);
+  if u is null then
+    raise exception 'No user with email %. Create it in Authentication > Users first.', p_email;
+  end if;
+
+  if p_role = 'barangay_admin' then
+    select id into b from barangays where name = p_barangay;
+    if b is null then raise exception 'Barangay "%" not found', p_barangay; end if;
+  end if;
+
+  insert into admins(user_id, barangay_id, role, full_name)
+  values (u, b, p_role, p_name)
+  on conflict (user_id) do update
+    set barangay_id = excluded.barangay_id,
+        role        = excluded.role,
+        full_name   = excluded.full_name;
+
+  return p_email || ' is now ' || p_role || coalesce(' of ' || p_barangay, '');
+end $$;
+
+-- only you (SQL editor / service role) may run it, never the public app
+revoke all on function add_admin(text, text, text, text) from public, anon, authenticated;
+
+-- Examples (remove the leading -- to run):
+-- select add_admin('juan@email.com',  'Sample Brgy 1', 'barangay_admin', 'Juan Dela Cruz');
+-- select add_admin('maria@email.com', 'Sample Brgy 1', 'barangay_admin', 'Maria Santos');  -- 2nd admin, same barangay
+-- select add_admin('pedro@email.com', 'Sample Brgy 2', 'barangay_admin', 'Pedro Reyes');   -- different barangay
+-- select add_admin('drrmo@email.com', null, 'super_admin', 'City DRRMO');                  -- sees every barangay
