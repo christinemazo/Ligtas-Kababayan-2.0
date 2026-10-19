@@ -121,6 +121,13 @@ drop policy if exists admin_update_shelters on shelters;
 create policy admin_update_shelters on shelters for update to authenticated
   using (barangay_id = my_barangay() or is_super());
 
+-- Only a super admin can ADD evacuation centers. Barangay admins can only update occupancy
+-- (the update policy above) and nobody can delete (no delete policy exists).
+drop policy if exists super_insert_shelters on shelters;
+create policy super_insert_shelters on shelters for insert to authenticated
+  with check (is_super());
+grant usage, select on sequence shelters_id_seq to authenticated;
+
 -- Citizens (anon) have NO direct access to reports. They use the functions in section 6.
 
 -- Admins can only change what the dashboard needs: report status, shelter occupancy
@@ -252,3 +259,15 @@ revoke all on function add_admin(text, text, text, text) from public, anon, auth
 -- select add_admin('maria@email.com', 'Sample Brgy 1', 'barangay_admin', 'Maria Santos');  -- 2nd admin, same barangay
 -- select add_admin('pedro@email.com', 'Sample Brgy 2', 'barangay_admin', 'Pedro Reyes');   -- different barangay
 -- select add_admin('drrmo@email.com', null, 'super_admin', 'City DRRMO');                  -- sees every barangay
+
+-- =====================================================================
+-- 9. ONLY THE SUPER ADMIN CAN ADD EVACUATION CENTERS
+-- Barangay admins can still update occupancy of their own centers (section 4),
+-- but cannot add or delete centers.
+-- =====================================================================
+revoke insert, delete on shelters from authenticated;
+grant  insert (name, barangay_id, capacity) on shelters to authenticated;
+
+drop policy if exists super_insert_shelters on shelters;
+create policy super_insert_shelters on shelters for insert to authenticated
+  with check (is_super());

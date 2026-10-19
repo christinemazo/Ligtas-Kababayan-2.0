@@ -207,7 +207,10 @@ function reportCard(r) {
 function shelterCard(s) {
   return `
     <div class="card row sh">
-      <b>${esc(s.name)}</b>
+      <div>
+        <b>${esc(s.name)}</b>
+        ${isSuper && !scope ? `<p style="margin:0;font-size:13px">${esc(s.barangays?.name)}</p>` : ""}
+      </div>
       <span>
         Occupied
         <input type="number" min="0" max="${s.capacity}" value="${s.occupied}" id="oc${s.id}">
@@ -220,6 +223,9 @@ function shelterCard(s) {
 const renderList = (reports) => reports.map(reportCard).join("") || "<p>No reports.</p>";
 
 // ---------- data ----------
+let isSuper = false; // true for the city-wide (super admin) account
+let scope = null; // barangay id being shown; null = all barangays (super admin only)
+
 // Vulnerable first, then highest water level, then oldest first.
 const byPriority = (a, b) =>
   (b.vul.length > 0) - (a.vul.length > 0) ||
@@ -227,10 +233,9 @@ const byPriority = (a, b) =>
   a.created_at.localeCompare(b.created_at);
 
 async function loadReports() {
-  const { data, error } = await sb
-    .from("reports")
-    .select("*, barangays(name)")
-    .neq("status", "done");
+  let q = sb.from("reports").select("*, barangays(name)").neq("status", "done");
+  if (scope) q = q.eq("barangay_id", scope);
+  const { data, error } = await q;
   if (error) return;
 
   const list = data.sort(byPriority);
@@ -241,7 +246,9 @@ async function loadReports() {
 }
 
 async function loadShelters() {
-  const { data } = await sb.from("shelters").select("*").order("name");
+  let q = sb.from("shelters").select("*, barangays(name)").order("name");
+  if (scope) q = q.eq("barangay_id", scope);
+  const { data } = await q;
   $("#sh").innerHTML = (data || []).map(shelterCard).join("");
 }
 
@@ -263,6 +270,19 @@ function subscribeRealtime() {
 }
 
 // ---------- screens ----------
+// Super admin only: dropdown to look at one barangay or all of them
+async function setupFilter() {
+  const sel = $("#bf");
+  sel.hidden = !isSuper;
+  $("#addsh").hidden = !isSuper; // only the super admin can add evacuation centers
+  if (!isSuper) return;
+  const { data } = await sb.from("barangays").select("id,name").order("name");
+  const options = (data || []).map((b) => `<option value="${b.id}">${esc(b.name)}</option>`).join("");
+  sel.innerHTML = `<option value="">All barangays</option>` + options;
+  sel.value = "";
+  $("#sb").innerHTML = options;
+}
+
 async function show() {
   const {
     data: { session },
@@ -270,11 +290,29 @@ async function show() {
 
   $("#login").hidden = !!session;
   $("#dash").hidden = !session;
-  if (!session) return;
+  if (!session) {
+    channel?.unsubscribe();
+    return;
+  }
   ensureMap();
+  fitted = false;
 
-  const { data: me } = await sb.from("admins").select("barangays(name)").maybeSingle();
-  $("#who").textContent = me ? `${me.barangays?.name} dashboard` : "Not set up as an admin yet";
+  // Read only this account's own row: admins can also read their teammates' rows,
+  // so without the user_id filter maybeSingle() would fail for a barangay with 2+ admins.
+  const { data: me } = await sb
+    .from("admins")
+    .select("role, barangay_id, barangays(name)")
+    .eq("user_id", session.user.id)
+    .maybeSingle();
+
+  isSuper = me?.role === "super_admin";
+  scope = isSuper ? null : (me?.barangay_id ?? null);
+  $("#who").textContent = !me
+    ? "Not set up as an admin yet"
+    : isSuper
+      ? "All barangays dashboard"
+      : `${me.barangays?.name} dashboard`;
+  await setupFilter();
 
   await load();
   subscribeRealtime();
@@ -311,9 +349,36 @@ async function updateShelter(id) {
   load();
 }
 
+// Super admin only. The database also refuses this insert for anyone else.
+async function addShelter() {
+  const name = $("#sn").value.trim();
+  const barangay_id = Number($("#sb").value);
+  const capacity = Number($("#sc").value);
+
+  if (!name || !barangay_id || !Number.isInteger(capacity) || capacity < 1) {
+    $("#serr").textContent = "Enter a name, a barangay and a capacity of at least 1.";
+    return;
+  }
+
+  const { error } = await sb.from("shelters").insert({ name, barangay_id, capacity });
+  $("#serr").textContent = error ? error.message : "";
+  if (error) return;
+
+  $("#sn").value = "";
+  $("#sc").value = "";
+  load();
+}
+
 // ---------- events ----------
 $("#go").onclick = signIn;
+$("#sadd").onclick = addShelter;
 $("#out").onclick = signOut;
+
+$("#bf").onchange = (e) => {
+  scope = e.target.value ? Number(e.target.value) : null;
+  fitted = false; // re-fit the map to the chosen barangay's reports
+  load();
+};
 
 document.addEventListener("click", (e) => {
   const focusLink = e.target.closest("[data-focus]");
