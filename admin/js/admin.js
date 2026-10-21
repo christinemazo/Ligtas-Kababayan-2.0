@@ -196,7 +196,7 @@ function reportCard(r) {
       <p style="color:var(--tx)"><b>Address:</b> <span id="ad${r.id}">${esc(addrLabel(r))}</span></p>
       ${vulnerable}
       <p>${esc(r.name)} ${esc(r.phone)} ${esc(r.descr)}</p>
-      <p><a href="#" data-focus="${r.id}">Show on map</a> · <a target="_blank" rel="noopener" href="${mapUrl}">Open in Google Maps</a> · ${coords(r)}</p>
+      <p>${isSuper ? `<a href="#" data-focus="${r.id}">Show on map</a> · ` : ""}<a target="_blank" rel="noopener" href="${mapUrl}">Open in Google Maps</a> · ${coords(r)}</p>
       <div class="acts">
         ${ackButton}
         <button class="btn" data-id="${r.id}" data-s="done">Rescued</button>
@@ -205,18 +205,24 @@ function reportCard(r) {
 }
 
 function shelterCard(s) {
-  return `
-    <div class="card row sh">
-      <div>
-        <b>${esc(s.name)}</b>
-        ${isSuper && !scope ? `<p style="margin:0;font-size:13px">${esc(s.barangays?.name)}</p>` : ""}
-      </div>
-      <span>
+  // Everyone can see every center; only that barangay's admins (and the super admin) can edit.
+  const canEdit = isSuper || s.barangay_id === myBarangay;
+  const where =
+    isSuper && scope
+      ? ""
+      : `<p style="margin:0;font-size:13px">${esc(s.barangays?.name)}${canEdit ? "" : " · view only"}</p>`;
+  const right = canEdit
+    ? `<span>
         Occupied
         <input type="number" min="0" max="${s.capacity}" value="${s.occupied}" id="oc${s.id}">
         of ${s.capacity}
         <button class="btn sec" style="width:auto;padding:8px 12px" data-shelter="${s.id}">Update</button>
-      </span>
+      </span>`
+    : `<span>Occupied <b>${s.occupied}</b> of ${s.capacity}</span>`;
+  return `
+    <div class="card row sh">
+      <div><b>${esc(s.name)}</b>${where}</div>
+      ${right}
     </div>`;
 }
 
@@ -224,6 +230,7 @@ const renderList = (reports) => reports.map(reportCard).join("") || "<p>No repor
 
 // ---------- data ----------
 let isSuper = false; // true for the city-wide (super admin) account
+let myBarangay = null; // barangay of a barangay admin (null for the super admin)
 let scope = null; // barangay id being shown; null = all barangays (super admin only)
 
 // Vulnerable first, then highest water level, then oldest first.
@@ -247,12 +254,96 @@ async function loadReports() {
 
 async function loadShelters() {
   let q = sb.from("shelters").select("*, barangays(name)").order("name");
-  if (scope) q = q.eq("barangay_id", scope);
+  if (isSuper && scope) q = q.eq("barangay_id", scope); // barangay admins see every center
   const { data } = await q;
-  $("#sh").innerHTML = (data || []).map(shelterCard).join("");
+  const list = (data || []).sort(
+    (a, b) =>
+      (b.barangay_id === myBarangay) - (a.barangay_id === myBarangay) || // own barangay first
+      (a.barangays?.name || "").localeCompare(b.barangays?.name || "") ||
+      a.name.localeCompare(b.name),
+  );
+  $("#sh").innerHTML = list.map(shelterCard).join("") || "<p>No evacuation centers yet.</p>";
 }
 
-const load = () => Promise.all([loadReports(), loadShelters()]);
+// ---------- super admin overview (one card per barangay) ----------
+let tab = "rp"; // "ov" = barangay overview (super admin), "rp" = reports and evacuation centers
+
+function overviewCard(t) {
+  const pct = t.cap ? Math.min(100, Math.round((t.occ / t.cap) * 100)) : 0;
+  const barColor = pct >= 90 ? "#e0312b" : pct >= 70 ? "#c77700" : "#1b8a5a";
+  const evac = t.centers
+    ? `<p>Evacuation: ${t.occ} of ${t.cap} (${pct}%) · ${t.centers} center${t.centers > 1 ? "s" : ""}</p>
+       <div class="bar"><i style="width:${pct}%;background:${barColor}"></i></div>`
+    : `<p>No evacuation center yet</p>`;
+  return `
+    <div class="card">
+      <div class="row"><b>${esc(t.name)}</b><span class="tag ${t.vul ? "v" : ""}">${t.open} open</span></div>
+      <p>${t.vul} vulnerable · ${t.fresh} new · ${t.open - t.fresh} acknowledged</p>
+      ${evac}
+      <p>Admins: ${t.admins.length ? esc(t.admins.join(", ")) : "none yet"}</p>
+      <div class="acts"><button class="btn sec" data-view="${t.id}">View reports</button></div>
+    </div>`;
+}
+
+async function loadOverview() {
+  const [b, r, s, a] = await Promise.all([
+    sb.from("barangays").select("id,name").order("name"),
+    sb.from("reports").select("barangay_id,status,vul").neq("status", "done"),
+    sb.from("shelters").select("barangay_id,capacity,occupied"),
+    sb.from("admins").select("barangay_id,full_name,role"),
+  ]);
+
+  const stats = new Map(
+    (b.data || []).map((x) => [
+      x.id,
+      { id: x.id, name: x.name, open: 0, fresh: 0, vul: 0, cap: 0, occ: 0, centers: 0, admins: [] },
+    ]),
+  );
+  for (const x of r.data || []) {
+    const t = stats.get(x.barangay_id);
+    if (!t) continue;
+    t.open++;
+    if (x.status === "new") t.fresh++;
+    if (x.vul.length) t.vul++;
+  }
+  for (const x of s.data || []) {
+    const t = stats.get(x.barangay_id);
+    if (!t) continue;
+    t.centers++;
+    t.cap += x.capacity;
+    t.occ += x.occupied;
+  }
+  for (const x of a.data || []) {
+    if (x.role === "barangay_admin") stats.get(x.barangay_id)?.admins.push(x.full_name || "Unnamed admin");
+  }
+
+  // Barangays that need attention first: most vulnerable open reports, then most open reports
+  const rows = [...stats.values()].sort(
+    (p, q) => q.vul - p.vul || q.open - p.open || p.name.localeCompare(q.name),
+  );
+  const sum = (key) => rows.reduce((n, t) => n + t[key], 0);
+  $("#ovsum").textContent =
+    `${rows.length} barangays · ${sum("open")} open reports (${sum("vul")} vulnerable) · ` +
+    `evacuation centers: ${sum("occ")} of ${sum("cap")} occupied`;
+  $("#ovg").innerHTML = rows.map(overviewCard).join("");
+}
+
+const load = () =>
+  isSuper && tab === "ov" ? loadOverview() : Promise.all([loadReports(), loadShelters()]);
+
+function setTab(name) {
+  tab = name;
+  $("#tabs").hidden = !isSuper;
+  $("#ov").hidden = !(isSuper && name === "ov");
+  $("#main").hidden = isSuper && name === "ov";
+  $("#tab-ov").className = name === "ov" ? "btn" : "btn sec";
+  $("#tab-rp").className = name === "rp" ? "btn" : "btn sec";
+  if (name === "rp") {
+    map?.invalidateSize();
+    fitted = false; // re-fit to the reports once it is visible again
+  }
+  return load();
+}
 
 // ---------- realtime ----------
 let channel;
@@ -270,11 +361,10 @@ function subscribeRealtime() {
 }
 
 // ---------- screens ----------
-// Super admin only: dropdown to look at one barangay or all of them
 async function setupFilter() {
   const sel = $("#bf");
   sel.hidden = !isSuper;
-  $("#addsh").hidden = !isSuper; // only the super admin can add evacuation centers
+  $("#addsh").hidden = !isSuper; 
   if (!isSuper) return;
   const { data } = await sb.from("barangays").select("id,name").order("name");
   const options = (data || []).map((b) => `<option value="${b.id}">${esc(b.name)}</option>`).join("");
@@ -294,11 +384,8 @@ async function show() {
     channel?.unsubscribe();
     return;
   }
-  ensureMap();
   fitted = false;
 
-  // Read only this account's own row: admins can also read their teammates' rows,
-  // so without the user_id filter maybeSingle() would fail for a barangay with 2+ admins.
   const { data: me } = await sb
     .from("admins")
     .select("role, barangay_id, barangays(name)")
@@ -306,6 +393,9 @@ async function show() {
     .maybeSingle();
 
   isSuper = me?.role === "super_admin";
+  myBarangay = me?.barangay_id ?? null;
+  $("#mapwrap").hidden = !isSuper; 
+  if (isSuper) ensureMap();
   scope = isSuper ? null : (me?.barangay_id ?? null);
   $("#who").textContent = !me
     ? "Not set up as an admin yet"
@@ -314,7 +404,7 @@ async function show() {
       : `${me.barangays?.name} dashboard`;
   await setupFilter();
 
-  await load();
+  await setTab(isSuper ? "ov" : "rp");
   subscribeRealtime();
 }
 
@@ -349,7 +439,7 @@ async function updateShelter(id) {
   load();
 }
 
-// Super admin only. The database also refuses this insert for anyone else.
+// Super admin only. 
 async function addShelter() {
   const name = $("#sn").value.trim();
   const barangay_id = Number($("#sb").value);
@@ -372,6 +462,8 @@ async function addShelter() {
 // ---------- events ----------
 $("#go").onclick = signIn;
 $("#sadd").onclick = addShelter;
+$("#tab-ov").onclick = () => setTab("ov");
+$("#tab-rp").onclick = () => setTab("rp");
 $("#out").onclick = signOut;
 
 $("#bf").onchange = (e) => {
@@ -385,6 +477,14 @@ document.addEventListener("click", (e) => {
   if (focusLink) {
     e.preventDefault();
     return focusReport(focusLink.dataset.focus);
+  }
+
+  // "View reports" on a barangay card in the overview
+  const viewBtn = e.target.closest("[data-view]");
+  if (viewBtn) {
+    scope = Number(viewBtn.dataset.view);
+    $("#bf").value = String(scope);
+    return setTab("rp");
   }
 
   const reportBtn = e.target.closest("[data-id]");

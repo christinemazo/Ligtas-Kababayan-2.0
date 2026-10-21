@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="/css/style.css">
   <style>
+    [hidden]{display:none !important} /* so display:flex/grid rules can never un-hide something */
     .wrap{max-width:900px}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
     @media(max-width:700px){.grid{grid-template-columns:1fr}}
@@ -20,6 +21,8 @@
     .rp.ack{opacity:.5}
     .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin:0 4px 0 8px}
     .card.hl{outline:3px solid var(--sos)}
+    summary{cursor:pointer}
+    details[open] summary{margin-bottom:6px}
     #bf,#sb{width:100%;font:inherit;padding:11px;border:1px solid var(--bd);border-radius:10px;margin:6px 0 10px;background:#fff;color:var(--tx)}
   </style>
 </head>
@@ -34,27 +37,37 @@
     </div>
     <div id="dash" hidden>
       <div class="row"><h2 id="who">Barangay dashboard</h2><button class="btn sec" id="out" style="width:auto">Sign out</button></div>
-      <p>Vulnerable queue first. Each list is sorted by water level. New reports appear instantly.</p>
-      <select id="bf" aria-label="Filter by barangay" hidden></select>
-      <div id="map"></div>
-      <p style="font-size:13px"><span class="dot" style="background:#e0312b;margin-left:0"></span>Vulnerable<span class="dot" style="background:#0b3a63"></span>Normal<span class="dot" style="background:#aab7c3"></span>Faded = acknowledged</p>
-      <div class="grid"><div><h3>Vulnerable queue</h3><div id="v"></div></div><div><h3>Normal queue</h3><div id="n"></div></div></div>
-      <h3>Evacuation center occupancy</h3><div id="sh"></div>
-      <div id="addsh" class="card" hidden>
-        <h3 style="margin-top:0">Add evacuation center</h3>
-        <label for="sn">Name</label><input id="sn" type="text" maxlength="80">
-        <label for="sb">Barangay</label><select id="sb"></select>
-        <label for="sc">Capacity</label><input id="sc" type="number" min="1">
-        <p id="serr" style="color:#e0312b"></p>
-        <button class="btn" id="sadd" style="margin-top:8px">Add evacuation center</button>
+
+      <!-- super admin only: switch between the per-barangay overview and the live reports -->
+      <div id="tabs" class="acts" hidden>
+        <button class="btn" id="tab-ov">Barangay overview</button>
+        <button class="btn sec" id="tab-rp">Reports &amp; evacuation centers</button>
       </div>
-      <div id="addsh" class="card" hidden>
-        <h3 style="margin-top:0">Add evacuation center</h3>
-        <label for="sn">Name</label><input id="sn" type="text" placeholder="e.g. Obrero Elementary School">
-        <label for="sb">Barangay</label><select id="sb"></select>
-        <label for="sc">Capacity (people)</label><input id="sc" type="number" min="1">
-        <p id="serr" style="color:#e0312b"></p>
-        <button class="btn" id="sadd" style="margin-top:8px">Add center</button>
+
+      <!-- super admin only: overview with one card per barangay -->
+      <div id="ov" hidden>
+        <details id="addsh" class="card" hidden>
+          <summary><b>Add evacuation center</b></summary>
+          <label for="sn">Name</label><input id="sn" type="text" maxlength="80" placeholder="e.g. Obrero Elementary School">
+          <label for="sb">Barangay</label><select id="sb"></select>
+          <label for="sc">Capacity (people)</label><input id="sc" type="number" min="1">
+          <p id="serr" style="color:#e0312b"></p>
+          <button class="btn" id="sadd" style="margin-top:8px">Add center</button>
+        </details>
+        <p id="ovsum"></p>
+        <div id="ovg" class="grid"></div>
+      </div>
+
+      <!-- reports, map and evacuation centers (barangay admins see only this part) -->
+      <div id="main">
+        <p>Vulnerable queue first. Each list is sorted by water level. New reports appear instantly.</p>
+        <select id="bf" aria-label="Filter by barangay" hidden></select>
+        <div id="mapwrap">
+        <div id="map"></div>
+        <p style="font-size:13px"><span class="dot" style="background:#e0312b;margin-left:0"></span>Vulnerable<span class="dot" style="background:#0b3a63"></span>Normal<span class="dot" style="background:#aab7c3"></span>Faded = acknowledged</p>
+        </div>
+        <div class="grid"><div><h3>Vulnerable queue</h3><div id="v"></div></div><div><h3>Normal queue</h3><div id="n"></div></div></div>
+        <h3>Evacuation center occupancy</h3><div id="sh"></div>
       </div>
     </div>
   </div>

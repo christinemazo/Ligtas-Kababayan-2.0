@@ -200,7 +200,6 @@ grant execute on function submit_report, update_report_details, get_report_statu
 
 -- =====================================================================
 -- 7. SAMPLE DATA (so you can test before you have real boundaries)
--- TODO: replace with real Calbayog barangay polygons (import GeoJSON) and real shelters.
 -- =====================================================================
 insert into barangays(name, geom) values
   ('Sample Brgy 1', st_multi(st_makeenvelope(124.59, 12.05, 124.62, 12.08, 4326))),
@@ -220,8 +219,6 @@ select v.name, b.id, v.capacity, v.occupied
 -- 8. ASSIGN ADMIN ACCOUNTS TO BARANGAYS
 -- Steps: (1) Authentication > Users > Add user (email + password, tick "Auto confirm")
 --        (2) run add_admin() below with that email
--- Run it again with a different email and the same barangay to add more admins to it.
--- Run it again with the same email and a different barangay to move that account.
 -- =====================================================================
 create or replace function add_admin(
   p_email    text,
@@ -254,17 +251,6 @@ end $$;
 -- only you (SQL editor / service role) may run it, never the public app
 revoke all on function add_admin(text, text, text, text) from public, anon, authenticated;
 
--- Examples (remove the leading -- to run):
--- select add_admin('juan@email.com',  'Sample Brgy 1', 'barangay_admin', 'Juan Dela Cruz');
--- select add_admin('maria@email.com', 'Sample Brgy 1', 'barangay_admin', 'Maria Santos');  -- 2nd admin, same barangay
--- select add_admin('pedro@email.com', 'Sample Brgy 2', 'barangay_admin', 'Pedro Reyes');   -- different barangay
--- select add_admin('drrmo@email.com', null, 'super_admin', 'City DRRMO');                  -- sees every barangay
-
--- =====================================================================
--- 9. ONLY THE SUPER ADMIN CAN ADD EVACUATION CENTERS
--- Barangay admins can still update occupancy of their own centers (section 4),
--- but cannot add or delete centers.
--- =====================================================================
 revoke insert, delete on shelters from authenticated;
 grant  insert (name, barangay_id, capacity) on shelters to authenticated;
 
