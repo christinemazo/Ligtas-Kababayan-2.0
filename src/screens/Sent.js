@@ -10,33 +10,41 @@ import {
 } from 'react-native';
 
 import { Btn, Card, Chip, Note, s } from '../ui';
+// HEADS, VULS = choice lists; STATUS = ['new','ack','done']; STEPS = labels; smsText = builds the SMS text
 import { HEADS, STATUS, STEPS, VULS, smsText } from '../constants';
 import { T, st } from '../styles';
 
+// mine = the SOS this phone sent (from App.js)
+// onSave = save the details, onTryAgain = go back to the SOS screen, onHome = go back to home
 export default function Sent({ mine, onSave, onTryAgain, onHome }) {
-  const [head, setHead] = useState(mine.head || '');
-  const [vul, setVul] = useState(mine.vul || []);
+  // Form fields start with whatever is already saved on the SOS
+  const [head, setHead] = useState(mine.head || '');   // how many people
+  const [vul, setVul] = useState(mine.vul || []);      // vulnerable groups (can pick several)
   const [name, setName] = useState(mine.name || '');
   const [phone, setPhone] = useState(mine.phone || '');
-  const [desc, setDesc] = useState(mine.desc || '');
-  const [saving, setSaving] = useState(false);
+  const [desc, setDesc] = useState(mine.desc || '');   // landmark / instructions
+  const [saving, setSaving] = useState(false);         // true while the save button is working
 
+  // Add the group if it is not chosen yet, remove it if it is
   const toggleVul = (v) =>
     setVul((cur) =>
       cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v]
     );
 
+  // Save the details through App.js
   const save = async () => {
     setSaving(true);
     try {
       await onSave({ name, phone, head, vul, desc });
     } finally {
-      setSaving(false);
+      setSaving(false); // always turn the saving state off, even if saving failed
     }
   };
 
+  // Open the phone's SMS app with the emergency text already typed
   const openSms = () => {
-    const body = encodeURIComponent(smsText(mine));
+    const body = encodeURIComponent(smsText(mine)); // make the text safe for a link
+    // iPhone and Android write the SMS link slightly differently
     const url = Platform.OS === 'ios' ? `sms:&body=${body}` : `sms:?body=${body}`;
     Linking.openURL(url).catch(() => {
       // SMS app may not be available on this device.
@@ -44,6 +52,7 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
   };
 
   // Request rejected by the server
+  // (shown instead of the normal screen when mine.error is set)
   if (mine.error) {
     return (
       <ScrollView contentContainerStyle={s.pad}>
@@ -53,11 +62,13 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
         </View>
 
         <Card>
+          {/* Red box saying the SOS was NOT sent */}
           <View style={[st.statusBox, { backgroundColor: T.redSoft }]}>
             <Text style={{ color: T.red, fontSize: 21, fontWeight: '900' }}>
               SOS NOT SENT
             </Text>
             <Text style={[st.body, { marginTop: 8 }]}>
+              {/* 'outside' = the pin is not inside any covered barangay */}
               {mine.error === 'outside'
                 ? 'Your location is outside the barangays covered by this system.'
                 : 'The server could not accept this request.'}
@@ -81,17 +92,20 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
     );
   }
 
-  const sent = !!mine.id;
-  const waiting = !sent && !mine.sending;
-  const reached = STATUS.indexOf(mine.status);
-  const sms = smsText(mine);
+  // ----- Values worked out from the current SOS -----
+  const sent = !!mine.id;                        // true once the server gave a reference code
+  const waiting = !sent && !mine.sending;        // not sent yet and not trying now = saved on the phone
+  const reached = STATUS.indexOf(mine.status);   // 0 = new, 1 = ack, 2 = done
+  const sms = smsText(mine);                     // fallback SMS text
 
+  // Heading for the status box
   const statusTitle = sent
     ? 'SOS request submitted'
     : mine.sending
       ? 'Sending your request...'
       : 'Saved on this device';
 
+  // Explanation under the heading
   const statusDescription = sent
     ? 'Your request has an ID. Check the status below for the latest recorded progress.'
     : mine.sending
@@ -99,13 +113,14 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
       : 'Your request is stored locally and is waiting to be sent.';
 
   return (
+    // On iPhone, push the screen up when the keyboard opens
     <KeyboardAvoidingView
       style={s.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
         contentContainerStyle={[s.pad, { paddingBottom: 30 }]}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="handled" // buttons still work while the keyboard is open
       >
         <View style={st.header}>
           <Text style={st.eyebrow}>EMERGENCY RESPONSE</Text>
@@ -116,7 +131,9 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
           </Text>
         </View>
 
+        {/* Status card */}
         <Card>
+          {/* Green when sent, yellow while sending or waiting */}
           <View
             style={[
               st.statusBox,
@@ -132,9 +149,11 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
             <Text style={[st.body, { marginTop: 7 }]}>{statusDescription}</Text>
           </View>
 
+          {/* Reference ID is shown only after the server accepted the SOS */}
           {sent && (
             <View style={st.refBox}>
               <Text style={st.label}>SOS REFERENCE ID</Text>
+              {/* selectable lets the user copy the code */}
               <Text selectable style={st.refId}>
                 {mine.id}
               </Text>
@@ -145,18 +164,21 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
             Response progress
           </Text>
 
+          {/* One row per step: Sent, Received, Rescued */}
           {STEPS.map((step, index) => {
-            const done = sent && index <= reached;
-            const current = sent && index === reached;
+            const done = sent && index <= reached;     // this step has been reached
+            const current = sent && index === reached; // this is the latest step
 
             return (
               <View
                 key={step}
                 style={[
                   st.step,
+                  // space between rows, but none after the last one
                   { marginBottom: index === STEPS.length - 1 ? 0 : 12 },
                 ]}
               >
+                {/* Circle: a check mark when done, otherwise the step number */}
                 <View style={[st.stepDot, done && st.stepDotDone]}>
                   <Text
                     style={{ color: done ? T.white : T.muted, fontWeight: '900' }}
@@ -164,6 +186,7 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
                     {done ? '✓' : index + 1}
                   </Text>
                 </View>
+                {/* The current step is green and extra bold */}
                 <Text
                   style={[
                     st.stepText,
@@ -179,6 +202,7 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
             );
           })}
 
+          {/* Only when the SOS is saved on the phone and not yet delivered */}
           {waiting && (
             <View style={{ marginTop: 18 }}>
               <Note>
@@ -191,6 +215,7 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
                 prepare an SMS for your barangay's designated emergency number.
               </Text>
 
+              {/* The SMS text the user can copy or send */}
               <View style={st.smsBox}>
                 <Text selectable style={{ color: T.navy, lineHeight: 21 }}>
                   {sms}
@@ -202,12 +227,14 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
           )}
         </Card>
 
+        {/* Details form card */}
         <Card>
           <Text style={st.h2}>Your emergency details</Text>
           <Text style={[st.small, { marginTop: 6, marginBottom: 18 }]}>
             Add information that can help responders understand your situation.
           </Text>
 
+          {/* Pick ONE: how many people are with the user */}
           <Text style={s.label}>People with you</Text>
           <View style={s.chips}>
             {HEADS.map((item) => (
@@ -220,6 +247,7 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
             ))}
           </View>
 
+          {/* Pick ANY: groups needing extra help */}
           <Text style={s.label}>Anyone needing extra assistance?</Text>
           <View style={s.chips}>
             {VULS.map((item) => (
@@ -240,7 +268,7 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
             placeholder="Enter your name"
             placeholderTextColor={T.muted}
             accessibilityLabel="Full name"
-            autoCapitalize="words"
+            autoCapitalize="words" // capitalise each word
           />
 
           <Text style={s.label}>Contact number</Text>
@@ -248,7 +276,7 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
             style={s.input}
             value={phone}
             onChangeText={setPhone}
-            keyboardType="phone-pad"
+            keyboardType="phone-pad" // number keyboard
             placeholder="Enter your phone number"
             placeholderTextColor={T.muted}
             accessibilityLabel="Contact number"
@@ -259,12 +287,13 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
             style={[s.input, s.textarea, { minHeight: 100, textAlignVertical: 'top' }]}
             value={desc}
             onChangeText={setDesc}
-            multiline
+            multiline // allow several lines
             placeholder="Describe a nearby landmark or other useful details"
             placeholderTextColor={T.muted}
             accessibilityLabel="Nearby landmark or instructions"
           />
 
+          {/* Disabled while saving, or while the SOS itself is still being sent */}
           <Btn
             title={saving ? 'Saving details...' : 'Save emergency details'}
             onPress={save}
@@ -273,6 +302,7 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
           />
         </Card>
 
+        {/* Reminder that the app status is not a guarantee */}
         <View style={[st.note, st.noteRed]}>
           <Text style={[st.noteTitle, { color: T.red }]}>IMPORTANT</Text>
           <Text style={st.noteBody}>
