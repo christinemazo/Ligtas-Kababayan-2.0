@@ -1,26 +1,9 @@
-
 import { useEffect, useState } from 'react';
-import { ScrollView, Text, View, Pressable } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Btn, Card, s } from '../ui';
 import { getShelters } from '../api';
-
-const C = {
-  navy: '#102A43',
-  red: '#C62828',
-  redSoft: '#FFF0F0',
-  blue: '#168AAD',
-  blueSoft: '#E4F5FB',
-  yellow: '#FFC928',
-  yellowSoft: '#FFF8DB',
-  green: '#198754',
-  greenSoft: '#E4F5EB',
-  white: '#FFFFFF',
-  text: '#243B53',
-  muted: '#62758A',
-  border: '#D6E0E9',
-  track: '#EAF0F6',
-};
+import { T, st } from '../styles';
 
 export default function Shelters({ onBack }) {
   const [list, setList] = useState([]);
@@ -33,26 +16,18 @@ export default function Shelters({ onBack }) {
     (async () => {
       try {
         const cached = await AsyncStorage.getItem('lk_shelters');
-
-        if (cached && alive) {
-          setList(JSON.parse(cached));
-        }
+        if (cached && alive) setList(JSON.parse(cached));
       } catch {
         // Ignore cache errors and try fetching fresh data.
       }
 
       try {
         const fresh = await getShelters();
-
         if (alive) {
           setList(fresh);
           setOffline(false);
         }
-
-        await AsyncStorage.setItem(
-          'lk_shelters',
-          JSON.stringify(fresh)
-        );
+        await AsyncStorage.setItem('lk_shelters', JSON.stringify(fresh));
       } catch {
         if (alive) setOffline(true);
       } finally {
@@ -70,156 +45,37 @@ export default function Shelters({ onBack }) {
   ).length;
 
   return (
-    <ScrollView
-      contentContainerStyle={[s.pad, { paddingBottom: 30 }]}
-    >
-      {/* Header */}
-      <View
-        style={{
-          backgroundColor: C.navy,
-          padding: 22,
-          borderRadius: 18,
-          marginBottom: 16,
-        }}
-      >
-        <Text
-          style={{
-            color: C.yellow,
-            fontSize: 12,
-            fontWeight: '900',
-            letterSpacing: 2,
-          }}
-        >
-          LIGTAS KABABAYAN
+    <ScrollView contentContainerStyle={[s.pad, { paddingBottom: 30 }]}>
+      <View style={st.header}>
+        <Text style={st.eyebrow}>LIGTAS KABABAYAN</Text>
+        <Text style={st.title}>Evacuation Centers</Text>
+        <Text style={st.subtitle}>
+          Find a listed evacuation center and check its recorded occupancy
+          information.
         </Text>
 
-        <Text
-          style={{
-            color: C.white,
-            fontSize: 25,
-            fontWeight: '900',
-            marginTop: 8,
-          }}
-        >
-          Evacuation Centers
-        </Text>
-
-        <Text
-          style={{
-            color: '#D9E6F2',
-            fontSize: 14,
-            lineHeight: 21,
-            marginTop: 6,
-          }}
-        >
-          Find a listed evacuation center and check its
-          recorded occupancy information.
-        </Text>
-
-        <View
-          style={{
-            flexDirection: 'row',
-            marginTop: 18,
-            gap: 10,
-          }}
-        >
-          <View
-            style={{
-              flex: 1,
-              backgroundColor: '#FFFFFF',
-              borderRadius: 12,
-              padding: 12,
-            }}
-          >
-            <Text
-              style={{
-                color: C.muted,
-                fontSize: 12,
-                fontWeight: '700',
-              }}
-            >
-              TOTAL CENTERS
-            </Text>
-            <Text
-              style={{
-                color: C.navy,
-                fontSize: 25,
-                fontWeight: '900',
-                marginTop: 4,
-              }}
-            >
-              {list.length}
-            </Text>
+        <View style={st.statRow}>
+          <View style={st.statBox}>
+            <Text style={st.label}>TOTAL CENTERS</Text>
+            <Text style={[st.statNum, { color: T.navy }]}>{list.length}</Text>
           </View>
-
-          <View
-            style={{
-              flex: 1,
-              backgroundColor: '#FFFFFF',
-              borderRadius: 12,
-              padding: 12,
-            }}
-          >
-            <Text
-              style={{
-                color: C.muted,
-                fontSize: 12,
-                fontWeight: '700',
-              }}
-            >
-              WITH SPACE LEFT
-            </Text>
-            <Text
-              style={{
-                color: C.green,
-                fontSize: 25,
-                fontWeight: '900',
-                marginTop: 4,
-              }}
-            >
+          <View style={st.statBox}>
+            <Text style={st.label}>WITH SPACE LEFT</Text>
+            <Text style={[st.statNum, { color: T.green }]}>
               {availableCount}
             </Text>
           </View>
         </View>
       </View>
 
-      {/* Back button */}
-      <Btn
-        kind="sec"
-        title="‹  Back to home"
-        onPress={onBack}
-        style={s.mb10}
-      />
+      <Btn kind="sec" title="‹  Back to home" onPress={onBack} style={s.mb10} />
 
-      {/* Connection notice */}
       {offline && (
-        <View
-          style={{
-            backgroundColor: C.yellowSoft,
-            borderLeftWidth: 5,
-            borderLeftColor: C.yellow,
-            borderRadius: 10,
-            padding: 14,
-            marginBottom: 16,
-          }}
-        >
-          <Text
-            style={{
-              color: '#755500',
-              fontWeight: '900',
-              fontSize: 14,
-            }}
-          >
+        <View style={[st.note, st.noteYellow]}>
+          <Text style={[st.noteTitle, { color: T.yellowText }]}>
             Offline mode
           </Text>
-          <Text
-            style={{
-              color: C.text,
-              fontSize: 13,
-              lineHeight: 20,
-              marginTop: 5,
-            }}
-          >
+          <Text style={st.noteBody}>
             {list.length > 0
               ? 'Showing the last saved shelter information. Occupancy may have changed.'
               : 'Could not load shelter information. Connect to the internet and reopen this page.'}
@@ -227,45 +83,14 @@ export default function Shelters({ onBack }) {
         </View>
       )}
 
-      {/* Shelter list title */}
-      <View
-        style={{
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 12,
-        }}
-      >
-        <Text
-          style={{
-            color: C.navy,
-            fontSize: 20,
-            fontWeight: '900',
-          }}
-        >
-          Available centers
-        </Text>
-
-        <Text
-          style={{
-            color: C.muted,
-            fontSize: 12,
-          }}
-        >
-          {list.length} listed
-        </Text>
+      <View style={[st.between, { alignItems: 'center', marginBottom: 12 }]}>
+        <Text style={st.h2}>Available centers</Text>
+        <Text style={st.tiny}>{list.length} listed</Text>
       </View>
 
-      {/* Loading / empty states */}
       {loading && list.length === 0 && (
         <Card>
-          <Text
-            style={{
-              color: C.navy,
-              fontWeight: '700',
-              fontSize: 15,
-            }}
-          >
+          <Text style={[st.h3, { fontSize: 15 }]}>
             Loading shelter information...
           </Text>
           <Text style={[s.muted, { marginTop: 6 }]}>
@@ -278,35 +103,19 @@ export default function Shelters({ onBack }) {
         <Card>
           <View style={{ alignItems: 'center', paddingVertical: 18 }}>
             <Text style={{ fontSize: 38 }}>⌂</Text>
-            <Text
-              style={{
-                color: C.navy,
-                fontSize: 18,
-                fontWeight: '900',
-                marginTop: 10,
-                textAlign: 'center',
-              }}
-            >
+            <Text style={[st.h3, { marginTop: 10, textAlign: 'center' }]}>
               No shelters listed yet
             </Text>
             <Text
-              style={{
-                color: C.muted,
-                fontSize: 14,
-                textAlign: 'center',
-                lineHeight: 21,
-                marginTop: 8,
-              }}
+              style={[st.body, { color: T.muted, textAlign: 'center', marginTop: 8 }]}
             >
-              Connect to the internet to load evacuation center
-              information. If you need help now, contact your local
-              emergency service.
+              Connect to the internet to load evacuation center information. If
+              you need help now, contact your local emergency service.
             </Text>
           </View>
         </Card>
       )}
 
-      {/* Shelter cards */}
       {list.map((sh) => {
         const capacity = Math.max(0, Number(sh.capacity) || 0);
         const occupied = Math.max(0, Number(sh.occupied) || 0);
@@ -315,216 +124,89 @@ export default function Shelters({ onBack }) {
           capacity > 0
             ? Math.min(100, Math.round((occupied / capacity) * 100))
             : 0;
-
         const full = left <= 0;
-        const statusColor = full ? C.red : C.green;
-        const statusBg = full ? C.redSoft : C.greenSoft;
+        const color = full ? T.red : T.green;
 
-        const updatedDate = sh.updated
-          ? new Date(sh.updated)
-          : null;
-
+        const d = sh.updated ? new Date(sh.updated) : null;
         const updated =
-          updatedDate && !Number.isNaN(updatedDate.getTime())
-            ? updatedDate.toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              })
+          d && !Number.isNaN(d.getTime())
+            ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             : 'Unknown';
 
         return (
           <Card key={sh.id} style={{ marginBottom: 14 }}>
-            {/* Name and status */}
-            <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                gap: 10,
-              }}
-            >
+            <View style={[st.between, { alignItems: 'flex-start', gap: 10 }]}>
               <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    color: C.navy,
-                    fontSize: 18,
-                    fontWeight: '900',
-                    lineHeight: 24,
-                  }}
-                >
-                  {sh.name}
-                </Text>
-
-                <Text
-                  style={{
-                    color: C.muted,
-                    fontSize: 13,
-                    marginTop: 5,
-                  }}
-                >
-                  {sh.barangay}
-                </Text>
+                <Text style={st.h3}>{sh.name}</Text>
+                <Text style={[st.small, { marginTop: 5 }]}>{sh.barangay}</Text>
               </View>
-
               <View
-                style={{
-                  backgroundColor: statusBg,
-                  paddingHorizontal: 11,
-                  paddingVertical: 7,
-                  borderRadius: 20,
-                }}
+                style={[
+                  st.pill,
+                  { backgroundColor: full ? T.redSoft : T.greenSoft },
+                ]}
               >
-                <Text
-                  style={{
-                    color: statusColor,
-                    fontSize: 12,
-                    fontWeight: '900',
-                  }}
-                >
+                <Text style={[st.pillText, { color }]}>
                   {full ? 'FULL' : 'SPACE LEFT'}
                 </Text>
               </View>
             </View>
 
-            {/* Availability */}
             <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                marginTop: 18,
-                marginBottom: 10,
-              }}
+              style={{ flexDirection: 'row', alignItems: 'center', marginTop: 18, marginBottom: 10 }}
             >
               <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    color: C.muted,
-                    fontSize: 12,
-                    fontWeight: '700',
-                  }}
-                >
-                  RECORDED OCCUPANCY
-                </Text>
-                <Text
-                  style={{
-                    color: C.navy,
-                    fontSize: 22,
-                    fontWeight: '900',
-                    marginTop: 4,
-                  }}
-                >
+                <Text style={st.label}>RECORDED OCCUPANCY</Text>
+                <Text style={[st.h2, { fontSize: 22, marginTop: 4 }]}>
                   {occupied}
-                  <Text
-                    style={{
-                      color: C.muted,
-                      fontSize: 14,
-                      fontWeight: '500',
-                    }}
-                  >
+                  <Text style={{ color: T.muted, fontSize: 14, fontWeight: '500' }}>
                     {' '}/ {capacity}
                   </Text>
                 </Text>
               </View>
-
               <View style={{ alignItems: 'flex-end' }}>
-                <Text
-                  style={{
-                    color: statusColor,
-                    fontSize: 20,
-                    fontWeight: '900',
-                  }}
-                >
+                <Text style={{ color, fontSize: 20, fontWeight: '900' }}>
                   {left}
                 </Text>
-                <Text style={{ color: C.muted, fontSize: 11 }}>
+                <Text style={{ color: T.muted, fontSize: 11 }}>
                   spaces remaining*
                 </Text>
               </View>
             </View>
 
-            {/* Occupancy bar */}
-            <View
-              style={{
-                height: 9,
-                backgroundColor: C.track,
-                borderRadius: 10,
-                overflow: 'hidden',
-              }}
-            >
+            <View style={st.bar}>
               <View
-                style={{
-                  height: '100%',
-                  width: `${pct}%`,
-                  backgroundColor:
-                    pct >= 90 ? C.red : pct >= 70 ? '#D99A00' : C.blue,
-                  borderRadius: 10,
-                }}
+                style={[
+                  st.barFill,
+                  {
+                    width: `${pct}%`,
+                    backgroundColor:
+                      pct >= 90 ? T.red : pct >= 70 ? '#D99A00' : T.blue,
+                  },
+                ]}
               />
             </View>
 
-            <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                marginTop: 8,
-              }}
-            >
-              <Text style={{ color: C.muted, fontSize: 12 }}>
-                {pct}% occupied
-              </Text>
-              <Text style={{ color: C.muted, fontSize: 12 }}>
-                Updated {updated}
-              </Text>
+            <View style={[st.between, { marginTop: 8 }]}>
+              <Text style={st.tiny}>{pct}% occupied</Text>
+              <Text style={st.tiny}>Updated {updated}</Text>
             </View>
           </Card>
         );
       })}
 
-      {/* Safety note */}
-      <View
-        style={{
-          backgroundColor: C.blueSoft,
-          borderLeftWidth: 5,
-          borderLeftColor: C.blue,
-          borderRadius: 12,
-          padding: 15,
-          marginTop: 4,
-          marginBottom: 16,
-        }}
-      >
-        <Text
-          style={{
-            color: C.navy,
-            fontSize: 14,
-            fontWeight: '900',
-            marginBottom: 6,
-          }}
-        >
+      <View style={[st.note, st.noteBlue, { marginTop: 4 }]}>
+        <Text style={[st.noteTitle, { color: T.navy }]}>
           Before going to a shelter
         </Text>
-
-        <Text
-          style={{
-            color: C.text,
-            fontSize: 13,
-            lineHeight: 20,
-          }}
-        >
+        <Text style={st.noteBody}>
           Follow official evacuation instructions and verify the shelter's
           availability with local authorities when possible. Occupancy
           information may change.
         </Text>
       </View>
 
-      <Text
-        style={{
-          color: C.muted,
-          fontSize: 11,
-          lineHeight: 17,
-          textAlign: 'center',
-          marginBottom: 10,
-        }}
-      >
+      <Text style={[st.tiny, { fontSize: 11, lineHeight: 17, textAlign: 'center', marginBottom: 10 }]}>
         *Remaining spaces are estimated from the recorded capacity and
         occupancy data. Confirm current availability with shelter staff.
       </Text>

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -8,27 +7,11 @@ import {
   Text,
   TextInput,
   View,
-  Pressable,
 } from 'react-native';
 
 import { Btn, Card, Chip, Note, s } from '../ui';
 import { HEADS, STATUS, STEPS, VULS, smsText } from '../constants';
-
-const C = {
-  navy: '#102A43',
-  red: '#C62828',
-  redSoft: '#FFF0F0',
-  blue: '#168AAD',
-  blueSoft: '#E4F5FB',
-  yellow: '#FFC928',
-  yellowSoft: '#FFF8DB',
-  green: '#198754',
-  greenSoft: '#E4F5EB',
-  text: '#243B53',
-  muted: '#62758A',
-  border: '#D6E0E9',
-  white: '#FFFFFF',
-};
+import { T, st } from '../styles';
 
 export default function Sent({ mine, onSave, onTryAgain, onHome }) {
   const [head, setHead] = useState(mine.head || '');
@@ -54,11 +37,7 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
 
   const openSms = () => {
     const body = encodeURIComponent(smsText(mine));
-    const url =
-      Platform.OS === 'ios'
-        ? `sms:&body=${body}`
-        : `sms:?body=${body}`;
-
+    const url = Platform.OS === 'ios' ? `sms:&body=${body}` : `sms:?body=${body}`;
     Linking.openURL(url).catch(() => {
       // SMS app may not be available on this device.
     });
@@ -68,88 +47,36 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
   if (mine.error) {
     return (
       <ScrollView contentContainerStyle={s.pad}>
-        <View
-          style={{
-            backgroundColor: C.navy,
-            padding: 22,
-            borderRadius: 18,
-            marginBottom: 16,
-          }}
-        >
-          <Text
-            style={{
-              color: C.yellow,
-              fontSize: 12,
-              fontWeight: '800',
-              letterSpacing: 2,
-            }}
-          >
-            LIGTAS KABABAYAN
-          </Text>
-          <Text
-            style={{
-              color: C.white,
-              fontSize: 25,
-              fontWeight: '900',
-              marginTop: 8,
-            }}
-          >
-            Emergency Request
-          </Text>
+        <View style={st.header}>
+          <Text style={st.eyebrow}>LIGTAS KABABAYAN</Text>
+          <Text style={st.title}>Emergency Request</Text>
         </View>
 
         <Card>
-          <View
-            style={{
-              backgroundColor: C.redSoft,
-              borderRadius: 14,
-              padding: 16,
-              marginBottom: 16,
-            }}
-          >
-            <Text style={{ color: C.red, fontSize: 21, fontWeight: '900' }}>
+          <View style={[st.statusBox, { backgroundColor: T.redSoft }]}>
+            <Text style={{ color: T.red, fontSize: 21, fontWeight: '900' }}>
               SOS NOT SENT
             </Text>
-            <Text
-              style={{
-                color: C.text,
-                fontSize: 14,
-                lineHeight: 21,
-                marginTop: 8,
-              }}
-            >
+            <Text style={[st.body, { marginTop: 8 }]}>
               {mine.error === 'outside'
                 ? 'Your location is outside the barangays covered by this system.'
                 : 'The server could not accept this request.'}
             </Text>
           </View>
 
-          <Text style={{ color: C.text, lineHeight: 22 }}>
+          <Text style={[st.body, { lineHeight: 22 }]}>
             If you are in immediate danger, call 911 or your local emergency
             hotline if available. Do not assume that a rescue team has received
             this request.
           </Text>
-
-          <Text
-            style={{
-              color: C.muted,
-              fontSize: 13,
-              lineHeight: 20,
-              marginTop: 12,
-            }}
-          >
+          <Text style={[st.small, { marginTop: 12 }]}>
             If the map pin is incorrect, return to the previous screen and
             correct your location before trying again.
           </Text>
         </Card>
 
         <Btn title="Try again" onPress={onTryAgain} />
-        <Btn
-          kind="sec"
-          title="Back to home"
-          onPress={onHome}
-          style={s.mt8}
-        />
+        <Btn kind="sec" title="Back to home" onPress={onHome} style={s.mt8} />
       </ScrollView>
     );
   }
@@ -180,136 +107,41 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
         contentContainerStyle={[s.pad, { paddingBottom: 30 }]}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Header */}
-        <View
-          style={{
-            backgroundColor: C.navy,
-            padding: 22,
-            borderRadius: 18,
-            marginBottom: 16,
-          }}
-        >
-          <Text
-            style={{
-              color: C.yellow,
-              fontSize: 12,
-              fontWeight: '800',
-              letterSpacing: 2,
-            }}
-          >
-            EMERGENCY RESPONSE
-          </Text>
-
-          <Text
-            style={{
-              color: C.white,
-              fontSize: 25,
-              fontWeight: '900',
-              marginTop: 8,
-            }}
-          >
-            Request Status
-          </Text>
-
-          <Text
-            style={{
-              color: '#D9E6F2',
-              fontSize: 14,
-              lineHeight: 21,
-              marginTop: 6,
-            }}
-          >
+        <View style={st.header}>
+          <Text style={st.eyebrow}>EMERGENCY RESPONSE</Text>
+          <Text style={st.title}>Request Status</Text>
+          <Text style={st.subtitle}>
             Keep your details updated and follow official emergency
             instructions.
           </Text>
         </View>
 
-        {/* Request status */}
         <Card>
           <View
-            style={{
-              backgroundColor: sent ? C.greenSoft : C.yellowSoft,
-              borderRadius: 14,
-              padding: 16,
-              marginBottom: 16,
-            }}
+            style={[
+              st.statusBox,
+              { backgroundColor: sent ? T.greenSoft : T.yellowSoft },
+            ]}
           >
             <Text
-              style={{
-                color: sent ? C.green : '#755500',
-                fontSize: 12,
-                fontWeight: '900',
-                letterSpacing: 1,
-              }}
+              style={[st.statusTag, { color: sent ? T.green : T.yellowText }]}
             >
               {sent ? 'REQUEST RECORDED' : 'REQUEST STATUS'}
             </Text>
-
-            <Text
-              style={{
-                color: C.navy,
-                fontSize: 21,
-                fontWeight: '900',
-                marginTop: 8,
-              }}
-            >
-              {statusTitle}
-            </Text>
-
-            <Text
-              style={{
-                color: C.text,
-                fontSize: 14,
-                lineHeight: 21,
-                marginTop: 7,
-              }}
-            >
-              {statusDescription}
-            </Text>
+            <Text style={st.statusTitle}>{statusTitle}</Text>
+            <Text style={[st.body, { marginTop: 7 }]}>{statusDescription}</Text>
           </View>
 
           {sent && (
-            <View
-              style={{
-                borderWidth: 1,
-                borderColor: C.border,
-                borderRadius: 12,
-                padding: 14,
-                marginBottom: 16,
-              }}
-            >
-              <Text
-                style={{
-                  color: C.muted,
-                  fontSize: 12,
-                  fontWeight: '700',
-                }}
-              >
-                SOS REFERENCE ID
-              </Text>
-
-              <Text
-                selectable
-                style={{
-                  color: C.navy,
-                  fontSize: 17,
-                  fontWeight: '900',
-                  marginTop: 6,
-                }}
-              >
+            <View style={st.refBox}>
+              <Text style={st.label}>SOS REFERENCE ID</Text>
+              <Text selectable style={st.refId}>
                 {mine.id}
               </Text>
             </View>
           )}
 
-          <Text
-            style={{
-              color: C.navy,
-              fontSize: 16,
-              fontWeight: '800',
-              marginBottom: 14,
-            }}
-          >
+          <Text style={[st.h3, { fontSize: 16, marginBottom: 14 }]}>
             Response progress
           </Text>
 
@@ -320,44 +152,29 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
             return (
               <View
                 key={step}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'flex-start',
-                  marginBottom: index === STEPS.length - 1 ? 0 : 12,
-                }}
+                style={[
+                  st.step,
+                  { marginBottom: index === STEPS.length - 1 ? 0 : 12 },
+                ]}
               >
-                <View
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 16,
-                    backgroundColor: done ? C.green : '#EAF0F6',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginRight: 12,
-                  }}
-                >
+                <View style={[st.stepDot, done && st.stepDotDone]}>
                   <Text
-                    style={{
-                      color: done ? C.white : C.muted,
-                      fontWeight: '900',
-                    }}
+                    style={{ color: done ? T.white : T.muted, fontWeight: '900' }}
                   >
                     {done ? '✓' : index + 1}
                   </Text>
                 </View>
-
-                <View style={{ flex: 1, paddingTop: 5 }}>
-                  <Text
-                    style={{
-                      color: current ? C.green : C.text,
+                <Text
+                  style={[
+                    st.stepText,
+                    {
+                      color: current ? T.green : T.text,
                       fontWeight: current ? '900' : '700',
-                      fontSize: 14,
-                    }}
-                  >
-                    {step}
-                  </Text>
-                </View>
+                    },
+                  ]}
+                >
+                  {step}
+                </Text>
               </View>
             );
           })}
@@ -369,28 +186,13 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
                 request when internet access returns.
               </Note>
 
-              <Text
-                style={{
-                  color: C.text,
-                  fontSize: 14,
-                  lineHeight: 21,
-                  marginTop: 14,
-                  marginBottom: 10,
-                }}
-              >
+              <Text style={[st.body, { marginTop: 14, marginBottom: 10 }]}>
                 If mobile service is available but internet is not, you can
                 prepare an SMS for your barangay's designated emergency number.
               </Text>
 
-              <View
-                style={{
-                  backgroundColor: C.blueSoft,
-                  padding: 12,
-                  borderRadius: 10,
-                  marginBottom: 12,
-                }}
-              >
-                <Text selectable style={{ color: C.navy, lineHeight: 21 }}>
+              <View style={st.smsBox}>
+                <Text selectable style={{ color: T.navy, lineHeight: 21 }}>
                   {sms}
                 </Text>
               </View>
@@ -400,27 +202,9 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
           )}
         </Card>
 
-        {/* Optional details */}
         <Card>
-          <Text
-            style={{
-              color: C.navy,
-              fontSize: 20,
-              fontWeight: '900',
-            }}
-          >
-            Your emergency details
-          </Text>
-
-          <Text
-            style={{
-              color: C.muted,
-              fontSize: 13,
-              lineHeight: 20,
-              marginTop: 6,
-              marginBottom: 18,
-            }}
-          >
+          <Text style={st.h2}>Your emergency details</Text>
+          <Text style={[st.small, { marginTop: 6, marginBottom: 18 }]}>
             Add information that can help responders understand your situation.
           </Text>
 
@@ -454,7 +238,7 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
             value={name}
             onChangeText={setName}
             placeholder="Enter your name"
-            placeholderTextColor={C.muted}
+            placeholderTextColor={T.muted}
             accessibilityLabel="Full name"
             autoCapitalize="words"
           />
@@ -466,22 +250,18 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
             onChangeText={setPhone}
             keyboardType="phone-pad"
             placeholder="Enter your phone number"
-            placeholderTextColor={C.muted}
+            placeholderTextColor={T.muted}
             accessibilityLabel="Contact number"
           />
 
           <Text style={s.label}>Nearby landmark or instructions</Text>
           <TextInput
-            style={[
-              s.input,
-              s.textarea,
-              { minHeight: 100, textAlignVertical: 'top' },
-            ]}
+            style={[s.input, s.textarea, { minHeight: 100, textAlignVertical: 'top' }]}
             value={desc}
             onChangeText={setDesc}
             multiline
             placeholder="Describe a nearby landmark or other useful details"
-            placeholderTextColor={C.muted}
+            placeholderTextColor={T.muted}
             accessibilityLabel="Nearby landmark or instructions"
           />
 
@@ -493,29 +273,9 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
           />
         </Card>
 
-        {/* Emergency reminder */}
-        <View
-          style={{
-            backgroundColor: C.redSoft,
-            borderLeftWidth: 5,
-            borderLeftColor: C.red,
-            borderRadius: 12,
-            padding: 15,
-            marginBottom: 16,
-          }}
-        >
-          <Text
-            style={{
-              color: C.red,
-              fontSize: 14,
-              fontWeight: '900',
-              marginBottom: 6,
-            }}
-          >
-            IMPORTANT
-          </Text>
-
-          <Text style={{ color: C.text, fontSize: 13, lineHeight: 20 }}>
+        <View style={[st.note, st.noteRed]}>
+          <Text style={[st.noteTitle, { color: T.red }]}>IMPORTANT</Text>
+          <Text style={st.noteBody}>
             An app status does not guarantee that rescuers have received your
             request. If you are in immediate danger, contact 911 or your local
             emergency service if available, and follow official instructions.
