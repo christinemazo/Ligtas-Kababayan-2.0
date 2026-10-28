@@ -4,7 +4,7 @@
 //   anything else  -> ./barangay-dashboard.js
 // Each role file exports start(me) and stop().
 import { sb } from "./api.js";
-import { $ } from "./shared.js";
+import { $ } from "./Shared.js";
 
 let current = null; // the role file that is running right now
 let runId = 0; // so an older show() cannot overwrite a newer one
