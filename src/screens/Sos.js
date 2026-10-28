@@ -16,7 +16,7 @@ import { Btn, s } from '../ui';
 import { LEVELS } from '../constants'; // the five water levels
 import MapPicker from '../MapPicker';  // the map with a draggable pin
 
-import { T, st } from '../styles';
+import { T, st } from './Styles';
 
 // Rectangle around Calbayog (west, north, east, south). Search prefers results inside it.
 const VIEWBOX = '124.40,12.30,124.85,11.85';

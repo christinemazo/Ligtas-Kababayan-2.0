@@ -3,7 +3,7 @@ import { ScrollView, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage'; // phone storage for the saved copy
 import { Btn, Card, s } from '../ui';
 import { getShelters } from '../api'; // loads shelters from the server
-import { T, st } from '../styles';
+import { T, st } from './Styles';
 
 // onBack = return to the home screen
 export default function Shelters({ onBack }) {

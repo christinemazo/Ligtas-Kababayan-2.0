@@ -2,7 +2,7 @@ import { Pressable, Text, View } from 'react-native';
 // Card and s = shared components and styles from ui.js
 import { Card, s } from '../ui';
 // T = theme colours, st = styles used by the four screens (styles.js)
-import { T, st } from '../styles';
+import { T, st } from './Styles';
 
 // onSos = open the SOS screen, onShelters = open the shelters screen (both come from App.js)
 export default function Home({ onSos, onShelters }) {

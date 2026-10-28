@@ -12,7 +12,7 @@ import {
 import { Btn, Card, Chip, Note, s } from '../ui';
 // HEADS, VULS = choice lists; STATUS = ['new','ack','done']; STEPS = labels; smsText = builds the SMS text
 import { HEADS, STATUS, STEPS, VULS, smsText } from '../constants';
-import { T, st } from '../styles';
+import { T, st } from './Styles';
 
 // mine = the SOS this phone sent (from App.js)
 // onSave = save the details, onTryAgain = go back to the SOS screen, onHome = go back to home
