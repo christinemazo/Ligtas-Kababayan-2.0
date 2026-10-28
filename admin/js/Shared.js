@@ -1,5 +1,4 @@
 // Code that BOTH roles use: helpers, address lookup, report/shelter cards, status actions, realtime.
-// Nothing in here may know which role is running. Role differences are passed in as options.
 import { sb } from "./api.js";
 
 // ---------- helpers ----------

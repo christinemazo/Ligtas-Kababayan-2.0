@@ -1,0 +1,50 @@
+/* Super admin dashboard only. Loaded by super-admin-dashboard.js, removed on sign out. */
+#map {
+  height: 340px;
+  border-radius: 14px;
+  border: 1px solid var(--bd);
+  margin: 10px 0 4px;
+}
+.rp {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.3);
+}
+.rp.v {
+  background: #e0312b;
+}
+.rp.n {
+  background: #0b3a63;
+}
+.rp.ack {
+  opacity: 0.5;
+}
+.dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin: 0 4px 0 8px;
+}
+.card.hl {
+  outline: 3px solid var(--sos);
+}
+summary {
+  cursor: pointer;
+}
+details[open] summary {
+  margin-bottom: 6px;
+}
+#bf,
+#sb {
+  width: 100%;
+  font: inherit;
+  padding: 11px;
+  border: 1px solid var(--bd);
+  border-radius: 10px;
+  margin: 6px 0 10px;
+  background: #fff;
+  color: var(--tx);
+}

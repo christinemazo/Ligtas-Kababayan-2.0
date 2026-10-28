@@ -1,0 +1,31 @@
+/* Admin styles used by BOTH dashboards (loaded from index.html, after /css/style.css).
+   Role-specific styles live in barangay-dashboard.css and super-admin-dashboard.css. */
+
+[hidden] {
+  display: none !important;
+} /* so display:flex/grid rules can never un-hide something */
+.wrap {
+  max-width: 900px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 700px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+.acts {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.acts .btn {
+  padding: 10px;
+}
+.sh input {
+  width: 90px;
+  margin: 0;
+}

@@ -1,4 +1,4 @@
-// Barangay admin screen: report queues + evacuation list. No map, no overview, no add-center form.
+// Barangay admin screen
 // Loaded by main.js only when the signed-in account is a barangay admin.
 import { sb } from "./api.js";
 import {
