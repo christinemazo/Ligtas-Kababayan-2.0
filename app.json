@@ -5,6 +5,7 @@
     "version": "0.2.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "icon": "./assets/appIcon.png",
     "plugins": [
       [
         "expo-location",
@@ -12,6 +13,10 @@
       ]
     ],
     "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/appIcon.png",
+        "backgroundColor": "#102A43"
+      },
       "package": "com.ligtas.kababayan",
       "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
     },

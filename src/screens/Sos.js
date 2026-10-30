@@ -283,7 +283,12 @@ export default function Sos({ onBack, onSend }) {
       {/* Header and address search */}
       <View style={st.topBar}>
         <View style={st.topRow}>
-          <Btn kind="sec" small title="‹ Back" onPress={onBack} />
+          <Btn 
+            kind="sec" 
+            small title="‹ Back" 
+            onPress={onBack} 
+            style={{ minHeight: 34, paddingVertical: 6 }}
+            />
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={st.topEyebrow}>EMERGENCY RESPONSE</Text>
             <Text style={st.topTitle}>Request Rescue</Text>
@@ -495,10 +500,9 @@ export default function Sos({ onBack, onSend }) {
             { opacity: pressed ? 0.85 : 1, elevation: level && loc ? 3 : 0 },
           ]}
         >
+          
           <Text style={st.sendText}>SEND HELP</Text>
-          <Text style={{ color: T.white, fontSize: 11, marginTop: 2 }}>
-            Emergency rescue request
-          </Text>
+          
         </Pressable>
       </View>
     </View>

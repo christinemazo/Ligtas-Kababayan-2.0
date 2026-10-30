@@ -103,7 +103,9 @@ export default function App() {
 
   // Poll status while the sent screen is open
   useEffect(() => {
-    if (scr !== 'sent' || !mine?.id) return;
+    // New {
+    if ((scr !== 'sent' && scr !== 'home') || !mine?.id) return;
+    // }
     const id = mine.clientId;
     const timer = setInterval(async () => {
       if (AppState.currentState !== 'active') return;
@@ -137,7 +139,17 @@ export default function App() {
           </View>
         )}
 
-        {scr === 'home' && <Home onSos={() => setScr('sos')} onShelters={() => setScr('shelters')} />}
+  
+      
+        {scr === 'home' && ( // New Home
+          <Home
+            mine={mine}
+            onSos={() => setScr('sos')}
+            onShelters={() => setScr('shelters')}
+            onStatus={() => setScr('sent')}
+          />
+        )}
+        
         {scr === 'sos' && <Sos onBack={() => setScr('home')} onSend={sendSOS} />}
         {scr === 'sent' && mine && (
           <Sent

@@ -1,13 +1,79 @@
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native'; // NEW: added ScrollView
 // Card and s = shared components and styles from ui.js
 import { Card, s } from '../ui';
+import { STATUS, STEPS } from '../constants'; // NEW
 // T = theme colours, st = styles used by the four screens (styles.js)
 import { T, st } from './Styles';
 
-// onSos = open the SOS screen, onShelters = open the shelters screen (both come from App.js)
-export default function Home({ onSos, onShelters }) {
+// NEW: the status card, shown only after an SOS was sent
+function StatusCard({ mine, onPress }) {
+  const failed = !!mine.error;                              // server refused it
+  const sent = !!mine.id;                                   // server gave a reference code
+  const reached = Math.max(0, STATUS.indexOf(mine.status)); // 0 = new, 1 = ack, 2 = done
+
+  const title = failed
+    ? 'SOS NOT SENT'
+    : sent
+      ? `Status: ${STEPS[reached]}`
+      : mine.sending
+        ? 'Sending your request...'
+        : 'Saved on this device';
+
+  const sub = failed
+    ? 'Tap to see what went wrong.'
+    : sent
+      ? `Reference ID: ${mine.id}`
+      : 'Will send automatically when signal returns.';
+
+  const bg = failed ? T.redSoft : sent ? T.greenSoft : T.yellowSoft;
+  const color = failed ? T.red : sent ? T.green : T.yellowText;
+
   return (
-    <View style={s.pad}>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel="View SOS request status"
+      style={({ pressed }) => [
+        st.statusBox,
+        { backgroundColor: bg, opacity: pressed ? 0.8 : 1 },
+      ]}
+    >
+      <Text style={[st.statusTag, { color }]}>YOUR SOS REQUEST</Text>
+      <Text style={st.statusTitle}>{title}</Text>
+      <Text style={[st.body, { marginTop: 6 }]}>{sub}</Text>
+
+      {/* Three progress bars: Sent, Received, Rescued */}
+      {sent && (
+        <View style={{ flexDirection: 'row', gap: 6, marginTop: 12 }}>
+          {STEPS.map((step, i) => (
+            <View key={step} style={{ flex: 1 }}>
+              <View
+                style={{
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor: i <= reached ? T.green : T.border,
+                }}
+              />
+              <Text style={[st.tiny, { marginTop: 4, textAlign: 'center' }]}>
+                {step}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      <Text style={[st.small, { marginTop: 10, color, fontWeight: '800' }]}>
+        Tap to view details ›
+      </Text>
+    </Pressable>
+  );
+}
+
+// mine = the SOS sent from this phone (null before any SOS)
+// onSos / onShelters / onStatus = open the SOS, shelters, or status screen (from App.js)
+export default function Home({ mine, onSos, onShelters, onStatus }) { // NEW: mine, onStatus
+  return (
+    <ScrollView contentContainerStyle={s.pad}> {/* NEW: was <View style={s.pad}> */}
       {/* Navy banner with the app name */}
       <View style={st.homeHeader}>
         <Text style={st.eyebrow}>EMERGENCY RESPONSE</Text>
@@ -17,6 +83,9 @@ export default function Home({ onSos, onShelters }) {
           shelter.
         </Text>
       </View>
+
+      {/* NEW: status card, only exists after an SOS was sent */}
+      {mine && <StatusCard mine={mine} onPress={onStatus} />}
 
       {/* Card holding the SOS button */}
       <Card style={s.cardCenter}>
@@ -79,6 +148,18 @@ export default function Home({ onSos, onShelters }) {
           evacuation instructions and move to higher ground when advised.
         </Text>
       </View>
-    </View>
+    </ScrollView> // NEW: was </View>
   );
 }
+
+/*
+UPDATE NI TL
+Goal of update: Butangan Status card sa home screen ONLY AFTER sending a help request.
+--------What changed-------
+1. Import line 1: added ScrollView (Para scrollable for smaller devices).
+2. New import: STATUS and STEPS from ../constants.
+3. New StatusCard component above Home.
+4. Home's first line: now receives mine and onStatus.
+5. Outer wrapper: <View style={s.pad}> became <ScrollView contentContainerStyle={s.pad}>, and the last </View> became </ScrollView>.
+6. One new line between the navy header and the "Need rescue?" card: {mine && <StatusCard mine={mine} onPress={onStatus} />}.
+*/

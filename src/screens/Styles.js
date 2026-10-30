@@ -127,37 +127,45 @@ export const st = StyleSheet.create({
   chevron: { color: T.blue, fontSize: 26, fontWeight: '800' },
 
   // ---------- Request Rescue (Sos) ----------
-  topBar: {
+
+  // New {
+    topBar: {
     backgroundColor: T.navy,
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 16,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: 10,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
   },
-  topRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
+  topRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  // }
+  
   topEyebrow: {
     color: T.yellow,
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1.5,
   },
-  topTitle: { color: T.white, fontSize: 21, fontWeight: '900', marginTop: 3 },
-  searchBar: {
+  topTitle: { color: T.white, fontSize: 18, fontWeight: '900' }, // New
+
+  // New {
+    searchBar: {
     backgroundColor: T.white,
-    borderRadius: 13,
-    minHeight: 52,
+    borderRadius: 12,
+    minHeight: 42,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
   },
-  searchInput: { flex: 1, color: T.text, fontSize: 14, paddingVertical: 12 },
+  searchInput: { flex: 1, color: T.text, fontSize: 14, paddingVertical: 8 },
   gpsBtn: {
     backgroundColor: T.blueSoft,
-    padding: 9,
-    borderRadius: 10,
+    padding: 5,
+    borderRadius: 9,
     marginLeft: 5,
   },
+  // }
+  
   results: {
     marginHorizontal: 16,
     marginTop: 8,
@@ -237,24 +245,27 @@ export const st = StyleSheet.create({
   },
   radioOn: { borderColor: T.red },
   radioDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: T.red },
-  footer: {
+
+  // New {
+    footer: {
     backgroundColor: T.white,
     borderTopWidth: 1,
     borderTopColor: T.border,
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 14,
+    paddingTop: 8,
+    paddingBottom: 10,
   },
   sendBtn: {
-    minHeight: 58,
-    borderRadius: 15,
+    minHeight: 46,
+    borderRadius: 12,
     backgroundColor: T.red,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  // }
   sendBtnOff: { backgroundColor: T.disabled },
-  sendText: { color: T.white, fontSize: 18, fontWeight: '900', letterSpacing: 1.2 },
-
+  
+  sendText: { color: T.white, fontSize: 16, fontWeight: '900', letterSpacing: 1.2 }, // New
   // ---------- Sent form ----------
   smsBox: {
     backgroundColor: T.blueSoft,
