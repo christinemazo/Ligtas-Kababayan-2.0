@@ -1,13 +1,25 @@
-// Entry point: login, session and role router.
-// After sign-in it finds the role and loads ONE of the two role files:
-//   super_admin    -> ./super-admin-dashboard.js
-//   anything else  -> ./barangay-dashboard.js
-// Each role file exports start(me) and stop().
 import { sb } from "./api.js";
-import { $ } from "./Shared.js";
+import { $, esc } from "./shared.js";
 
-let current = null; // the role file that is running right now
+const ROLES = {
+  super_admin: () => import("./super/index.js"),
+  barangay_admin: () => import("./barangay/index.js"),
+};
+
+let current = null; // the role folder that is running right now
 let runId = 0; // so an older show() cannot overwrite a newer one
+
+function showMessage(title, text) {
+  $("#app").innerHTML = `
+    <div class="login">
+      <div class="card login-card">
+        <h2>${esc(title)}</h2>
+        <p>${esc(text)}</p>
+        <button class="btn sec" id="out2" style="margin-top:10px">Sign out</button>
+      </div>
+    </div>`;
+  $("#out2").onclick = signOut;
+}
 
 async function show() {
   const run = ++runId;
@@ -17,34 +29,29 @@ async function show() {
   } = await sb.auth.getSession();
 
   $("#login").hidden = !!session;
-  $("#dash").hidden = !session;
+  $("#app").hidden = !session;
 
-  // Close whatever role screen was open (sign out, or signing in as someone else)
+  // Close whatever role dashboard was open (sign out, or signing in as someone else)
   await current?.stop();
   current = null;
   if (!session) return;
 
-  const { data: me } = await sb
+  const { data: me, error } = await sb
     .from("admins")
-    .select("role, barangay_id, barangays(name)")
+    .select("role, full_name, barangay_id, barangays(name)")
     .eq("user_id", session.user.id)
     .maybeSingle();
   if (run !== runId) return;
 
-  if (!me) {
-    $("#who").textContent = "Not set up as an admin yet";
-    $("#app").innerHTML = "<p>This account has no admin role.</p>";
-    return;
-  }
+  if (error) return showMessage("Could not load your account", "Check your connection and sign in again.");
+  const loadRole = ROLES[me?.role];
+  if (!loadRole) return showMessage("Not set up as an admin yet", "This account has no admin role. Ask the project team to add it.");
 
-  const isSuper = me.role === "super_admin";
-  $("#who").textContent = isSuper ? "All barangays dashboard" : `${me.barangays?.name} dashboard`;
-
-  const role = await import(isSuper ? "./super-admin-dashboard.js" : "./barangay-dashboard.js");
+  const role = await loadRole();
   if (run !== runId) return;
 
   current = role;
-  await role.start(me);
+  await role.start({ me, user: session.user, signOut });
 }
 
 async function signIn() {
@@ -62,6 +69,8 @@ async function signOut() {
 }
 
 $("#go").onclick = signIn;
-$("#out").onclick = signOut;
+for (const id of ["#em", "#pw"]) {
+  $(id).addEventListener("keydown", (e) => e.key === "Enter" && signIn());
+}
 
 show();

@@ -1,5 +1,4 @@
 // Barangay admin screen
-// Loaded by main.js only when the signed-in account is a barangay admin.
 import { sb } from "./api.js";
 import {
   $,
@@ -10,7 +9,7 @@ import {
   bindActions,
   loadStylesheet,
   watch,
-} from "./Shared.js";
+} from "./shared.js";
 
 const LAYOUT = `
   <p>Vulnerable queue first. Each list is sorted by water level. New reports appear instantly.</p>

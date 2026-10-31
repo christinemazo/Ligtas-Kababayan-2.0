@@ -1,27 +1,32 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ligtas Kababayan – Admin</title>
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="/css/admin.css">
+  <script>
+    // apply the saved light/dark choice before the page paints (no flash)
+    try { document.documentElement.dataset.theme = localStorage.getItem("lk-theme") || "dark"; } catch {}
+  </script>
 </head>
 <body>
-  <div class="wrap">
-    <div id="login" class="card" hidden>
+  <!-- sign-in screen -->
+  <div id="login" class="login" hidden>
+    <div class="card login-card">
       <h2>Admin login</h2>
+      <p>Ligtas Kababayan · barangay and city admins</p>
       <label for="em">Email</label><input id="em" type="email" autocomplete="username">
       <label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password">
       <p id="err" style="color:#e0312b"></p>
       <button class="btn" id="go" style="margin-top:8px">Sign in</button>
     </div>
-    <div id="dash" hidden>
-      <div class="row"><h2 id="who">Barangay dashboard</h2><button class="btn sec" id="out" style="width:auto">Sign out</button></div>
-      <!-- main.js fills this with the barangay or super admin dashboard -->
-      <div id="app"></div>
-    </div>
   </div>
+
+  <!-- dashboard: main.js picks the role, then shell.js draws the sidebar, top bar and pages here -->
+  <div id="app" hidden></div>
+
   <script type="module" src="/js/main.js"></script>
 </body>
 </html>

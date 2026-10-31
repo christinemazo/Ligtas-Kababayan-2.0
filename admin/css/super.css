@@ -1,0 +1,33 @@
+/* Super admin (city DRRMO) only. Loaded by js/super/index.js and removed on sign out. */
+.shell[data-role="super"] {
+  --acc: #6d86ff; /* royal blue = super admin */
+  --acc2: #3b4fd8;
+  --acc-soft: rgba(109, 134, 255, 0.17);
+}
+
+/* live map page */
+#map { height: calc(100vh - 290px);
+  min-height: 380px;
+  border-radius: 12px;
+  border: 1px solid var(--bd);
+}
+.rp {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%; 
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.3);
+}
+.rp.v { background: #e0312b; }
+.rp.n { background: #38a3f5; }
+.rp.ack { opacity: 0.5; }
+.legend-line { margin: 10px 4px 2px; font-size: 13px; }
+.dot { display: inline-block;
+  width: 10px; height: 10px;
+  border-radius: 50%; margin:
+  0 4px 0 12px;
+}
+
+/* add-evacuation-center form */
+details.card summary { cursor: pointer; }
+details.card[open] summary { margin-bottom: 8px; }

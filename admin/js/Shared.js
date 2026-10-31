@@ -1,15 +1,26 @@
-// Code that BOTH roles use: helpers, address lookup, report/shelter cards, status actions, realtime.
+// Code used by BOTH roles: helpers, report/center cards, dashboard widgets (stat cards, donut,
+// bar chart), address lookup, status actions and realtime.
 import { sb } from "./api.js";
 
 // ---------- helpers ----------
 export const $ = (selector) => document.querySelector(selector);
 
 export const LEVEL = ["", "Ankle", "Knee", "Waist", "Chest / Neck", "Head / Submerged"];
+export const LEVEL_COLORS = ["", "#38bdf8", "#2dd4bf", "#fbbf24", "#fb923c", "#ef4444"];
 
 const ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" };
 export const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ESCAPES[c]);
 
 export const coords = (r) => `${r.lat.toFixed(5)}, ${r.lng.toFixed(5)}`;
+export const num = (n) => Number(n || 0).toLocaleString();
+export const total = (list, key) => list.reduce((n, x) => n + (x[key] || 0), 0);
+export const pct = (part, whole) => (whole ? Math.min(100, Math.round((part / whole) * 100)) : 0);
+
+// true while the admin is typing in a box inside `el` (so a live refresh must not wipe it)
+export function isEditing(el) {
+  const a = document.activeElement;
+  return !!a && el.contains(a) && ["INPUT", "SELECT", "TEXTAREA"].includes(a.tagName);
+}
 
 // Adds a <link> for a role's stylesheet and resolves once it has loaded (or failed), so the
 // screen never flashes unstyled. The caller removes the returned element on stop().
@@ -109,6 +120,22 @@ export function fillAddresses(reports) {
   }
 }
 
+// ---------- data ----------
+// Open reports (everything not yet "done"). barangayId = null means every barangay the account can see.
+export async function fetchOpenReports({ barangayId = null } = {}) {
+  let q = sb.from("reports").select("*, barangays(name)").neq("status", "done");
+  if (barangayId) q = q.eq("barangay_id", barangayId);
+  const { data, error } = await q;
+  return error ? null : data;
+}
+
+export async function fetchShelters({ barangayId = null } = {}) {
+  let q = sb.from("shelters").select("*, barangays(name)").order("name");
+  if (barangayId) q = q.eq("barangay_id", barangayId);
+  const { data, error } = await q;
+  return error ? null : data;
+}
+
 // ---------- report cards ----------
 // Vulnerable first, then highest water level, then oldest first.
 export const byPriority = (a, b) =>
@@ -116,7 +143,7 @@ export const byPriority = (a, b) =>
   b.level - a.level ||
   a.created_at.localeCompare(b.created_at);
 
-// options.mapLink: show the "Show on map" link (only the super admin screen has a map)
+// options.mapLink: show a "Show on map" link to the live map page (super admin only)
 export function reportCard(r, { mapLink = false } = {}) {
   const time = new Date(r.created_at).toLocaleTimeString();
   const head = r.head ? ` · ${esc(r.head)} people` : "";
@@ -137,7 +164,7 @@ export function reportCard(r, { mapLink = false } = {}) {
       <p style="color:var(--tx)"><b>Address:</b> <span id="ad${r.id}">${esc(addrLabel(r))}</span></p>
       ${vulnerable}
       <p>${esc(r.name)} ${esc(r.phone)} ${esc(r.descr)}</p>
-      <p>${mapLink ? `<a href="#" data-focus="${r.id}">Show on map</a> · ` : ""}<a target="_blank" rel="noopener" href="${mapUrl}">Open in Google Maps</a> · ${coords(r)}</p>
+      <p>${mapLink ? `<a href="#/map?focus=${r.id}">Show on map</a> · ` : ""}<a target="_blank" rel="noopener" href="${mapUrl}">Open in Google Maps</a> · ${coords(r)}</p>
       <div class="acts">
         ${ackButton}
         <button class="btn" data-id="${r.id}" data-s="done">Rescued</button>
@@ -146,12 +173,34 @@ export function reportCard(r, { mapLink = false } = {}) {
 }
 
 export const renderList = (reports, options) =>
-  reports.map((r) => reportCard(r, options)).join("") || "<p>No reports.</p>";
+  reports.map((r) => reportCard(r, options)).join("") || '<p class="empty">No reports.</p>';
 
-// ---------- shelter cards ----------
+// The two queues side by side: Vulnerable and Normal
+export function queuesHtml(list, options) {
+  const sorted = [...list].sort(byPriority);
+  const vul = sorted.filter((r) => r.vul.length);
+  const normal = sorted.filter((r) => !r.vul.length);
+  return `
+    <div class="grid">
+      <div><h3>Vulnerable queue <span class="count">${vul.length}</span></h3>${renderList(vul, options)}</div>
+      <div><h3>Normal queue <span class="count">${normal.length}</span></h3>${renderList(normal, options)}</div>
+    </div>`;
+}
+
+// One compact line for "most urgent" lists on the overview pages
+export function miniRow(r) {
+  const tags = r.vul.map((v) => `<span class="tag v">${esc(v)}</span>`).join("");
+  return `
+    <div class="mini">
+      <div><b>${esc(r.code)}</b> <span class="tag ${r.level >= 4 ? "v" : ""}">${LEVEL[r.level]}</span>${tags}</div>
+      <small>${esc(r.barangays?.name ?? "")} · ${new Date(r.created_at).toLocaleTimeString()}</small>
+    </div>`;
+}
+
+// ---------- evacuation center cards ----------
 // options.canEdit:   show the occupancy input + Update button
 // options.showWhere: show the barangay name under the center name
-export function shelterCard(s, { canEdit, showWhere }) {
+export function shelterCard(s, { canEdit = false, showWhere = false } = {}) {
   const where = showWhere
     ? `<p style="margin:0;font-size:13px">${esc(s.barangays?.name)}${canEdit ? "" : " · view only"}</p>`
     : "";
@@ -170,6 +219,63 @@ export function shelterCard(s, { canEdit, showWhere }) {
     </div>`;
 }
 
+// ---------- dashboard widgets ----------
+// icon: an emoji. tone: blue | red | amber | green | purple
+export function statCard({ icon, tone = "blue", value, label, note = "" }) {
+  return `
+    <div class="card stat tone-${tone}">
+      <div class="ico">${icon}</div>
+      <div><b>${esc(value)}</b><span>${esc(label)}</span>${note ? `<small>${esc(note)}</small>` : ""}</div>
+    </div>`;
+}
+
+// parts: [{ label, value, color }]. Drawn with a CSS conic-gradient, no chart library.
+export function donut(parts, { center = "", caption = "" } = {}) {
+  const sum = total(parts, "value");
+  let run = 0;
+  const stops = sum
+    ? parts
+        .map((p) => {
+          const from = (run / sum) * 100;
+          run += p.value;
+          return `${p.color} ${from}% ${(run / sum) * 100}%`;
+        })
+        .join(", ")
+    : "var(--bd) 0% 100%";
+  const legend = parts
+    .map((p) => `<li><i style="background:${p.color}"></i>${esc(p.label)}<b>${num(p.value)}</b></li>`)
+    .join("");
+  return `
+    <div class="donut-wrap">
+      <div class="donut" style="background:conic-gradient(${stops})">
+        <div class="mid"><b>${esc(center)}</b><span>${esc(caption)}</span></div>
+      </div>
+      <ul class="legend">${legend}</ul>
+    </div>`;
+}
+
+// items: [{ label, value, color }]
+export function barChart(items) {
+  const max = Math.max(1, ...items.map((i) => i.value));
+  return `
+    <div class="bars">
+      ${items
+        .map(
+          (i) => `
+        <div class="col">
+          <em>${num(i.value)}</em>
+          <div class="track"><i style="height:${Math.round((i.value / max) * 100)}%;background:${i.color}"></i></div>
+          <span>${esc(i.label)}</span>
+        </div>`,
+        )
+        .join("")}
+    </div>`;
+}
+
+// Reports per water level, ready for barChart()
+export const levelBars = (counts) =>
+  counts.map((value, i) => ({ label: LEVEL[i + 1], value, color: LEVEL_COLORS[i + 1] }));
+
 // ---------- actions both roles have ----------
 async function setReportStatus(id, status) {
   await sb.from("reports").update({ status }).eq("id", id);
@@ -186,7 +292,7 @@ async function updateShelter(id) {
 }
 
 // Handles the Acknowledge / Rescued / Update buttons, then calls reload().
-// Pass an AbortSignal so the listener is removed when the role screen is closed.
+// Pass an AbortSignal so the listener is removed when the page is closed.
 export function bindActions(reload, signal) {
   document.addEventListener(
     "click",
@@ -208,7 +314,7 @@ export function bindActions(reload, signal) {
 }
 
 // ---------- realtime ----------
-// Reloads on new/changed reports, beeps on new ones, and refreshes every 30 s in case realtime drops.
+// Calls reload() on new/changed reports (beeps on new ones) and every 30 s in case realtime drops.
 // Returns a function that stops everything.
 export function watch(reload) {
   const channel = sb

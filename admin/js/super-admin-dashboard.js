@@ -13,7 +13,7 @@ import {
   bindActions,
   loadStylesheet,
   watch,
-} from "./Shared.js";
+} from "./shared.js";
 
 // ---------- page layout ----------
 const LAYOUT = `

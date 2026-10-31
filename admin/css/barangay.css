@@ -1,0 +1,6 @@
+/* Barangay admin only. Loaded by js/barangay/index.js and removed on sign out. */
+.shell[data-role="barangay"] {
+  --acc: #38a3f5; /* sky blue = barangay admin */
+  --acc2: #1f6feb;
+  --acc-soft: rgba(56, 163, 245, 0.15);
+}
