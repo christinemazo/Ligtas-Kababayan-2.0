@@ -302,15 +302,7 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
           />
         </Card>
 
-        {/* Reminder that the app status is not a guarantee */}
-        <View style={[st.note, st.noteRed]}>
-          <Text style={[st.noteTitle, { color: T.red }]}>IMPORTANT</Text>
-          <Text style={st.noteBody}>
-            An app status does not guarantee that rescuers have received your
-            request. If you are in immediate danger, contact 911 or your local
-            emergency service if available, and follow official instructions.
-          </Text>
-        </View>
+       
 
         <Btn kind="sec" title="Back to home" onPress={onHome} />
       </ScrollView>

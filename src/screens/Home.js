@@ -73,8 +73,7 @@ function StatusCard({ mine, onPress }) {
 // onSos / onShelters / onStatus = open the SOS, shelters, or status screen (from App.js)
 export default function Home({ mine, onSos, onShelters, onStatus }) { // NEW: mine, onStatus
   return (
-    <ScrollView contentContainerStyle={s.pad}> {/* NEW: was <View style={s.pad}> */}
-      {/* Navy banner with the app name */}
+    <ScrollView contentContainerStyle={s.pad}>
       <View style={st.homeHeader}>
         <Text style={st.eyebrow}>EMERGENCY RESPONSE</Text>
         <Text style={st.title}>LigtasKababayan</Text>
