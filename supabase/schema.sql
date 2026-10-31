@@ -1,4 +1,10 @@
 -- =====================================================================
+-- LIGTAS KABABAYAN: DATABASE SCHEMA
+-- RUN ORDER (new Supabase project):
+
+-- Without step 2 no barangay has a boundary, so every SOS is rejected as 'outside_area'.
+
+-- =====================================================================
 -- 1. EXTENSIONS AND SEQUENCES
 -- =====================================================================
 create extension if not exists postgis;
@@ -199,21 +205,9 @@ $$ select status from reports where client_id = p_client_id $$;
 grant execute on function submit_report, update_report_details, get_report_status to anon, authenticated;
 
 -- =====================================================================
--- 7. SAMPLE DATA (so you can test before you have real boundaries)
--- =====================================================================
-insert into barangays(name, geom) values
-  ('Sample Brgy 1', st_multi(st_makeenvelope(124.59, 12.05, 124.62, 12.08, 4326))),
-  ('Sample Brgy 2', st_multi(st_makeenvelope(124.55, 12.02, 124.59, 12.05, 4326)))
-on conflict (name) do nothing;
-
-insert into shelters(name, barangay_id, capacity, occupied)
-select v.name, b.id, v.capacity, v.occupied
-  from (values
-    ('Sample Evacuation Center A', 'Sample Brgy 1', 100, 42),
-    ('Sample Evacuation Center B', 'Sample Brgy 2',  80, 74)
-  ) as v(name, brgy, capacity, occupied)
-  join barangays b on b.name = v.brgy
- where not exists (select 1 from shelters);
+-- 7. BARANGAY BOUNDARIES
+-- The real boundaries live in import_calbayog_barangays.sql (157 barangays, run it after this file).
+-- It fills barangays.geom, which submit_report() uses to find the barangay of a pin.
 
 -- =====================================================================
 -- 8. ASSIGN ADMIN ACCOUNTS TO BARANGAYS
@@ -253,7 +247,3 @@ revoke all on function add_admin(text, text, text, text) from public, anon, auth
 
 revoke insert, delete on shelters from authenticated;
 grant  insert (name, barangay_id, capacity) on shelters to authenticated;
-
-drop policy if exists super_insert_shelters on shelters;
-create policy super_insert_shelters on shelters for insert to authenticated
-  with check (is_super());
