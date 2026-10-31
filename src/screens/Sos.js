@@ -268,15 +268,17 @@ export default function Sos({ onBack, onSend }) {
   };
 
   // The sentence shown under the map describing the selected location
+  // Displays the place name instead of latitude and longitude
   const locationText = !loc
     ? 'Finding your location. You can also search for an address or place a map pin.'
-    : `${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)} · ${
-        loc.src === 'gps'
-          ? `GPS accuracy about ${loc.acc} m`
+    : loc.label ||
+      (!editing && query
+        ? query
+        : loc.src === 'gps'
+          ? 'Current GPS location'
           : loc.src === 'pin'
-            ? 'Manually selected pin'
-            : 'Last known location — please verify'
-      }`;
+            ? 'Selected map location'
+            : 'Last known location — please verify');
 
   return (
     <View style={[s.screen, { backgroundColor: T.background }]}>

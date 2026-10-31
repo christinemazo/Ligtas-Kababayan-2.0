@@ -9,8 +9,11 @@
     "plugins": [
       [
         "expo-location",
-        { "locationWhenInUsePermission": "Ligtas Kababayan uses your location to tell rescuers where you are." }
-      ]
+        {
+          "locationWhenInUsePermission": "Ligtas Kababayan uses your location to tell rescuers where you are."
+        }
+      ],
+      "expo-status-bar"
     ],
     "android": {
       "adaptiveIcon": {
@@ -18,7 +21,10 @@
         "backgroundColor": "#102A43"
       },
       "package": "com.ligtas.kababayan",
-      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
     },
     "ios": {
       "bundleIdentifier": "com.ligtas.kababayan",
