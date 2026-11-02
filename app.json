@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "icon": "./assets/appIcon.png",
+    "icon": "./assets/AppIcon2.png",
     "plugins": [
       [
         "expo-location",
@@ -17,7 +17,7 @@
     ],
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/appIcon.png",
+        "foregroundImage": "./assets/AppIcon2.png",
         "backgroundColor": "#102A43"
       },
       "package": "com.ligtas.kababayan",

@@ -78,7 +78,7 @@ export default function Shelters({ onBack }) {
         </View>
       </View>
 
-      <Btn kind="sec" title="‹  Back to home" onPress={onBack} style={s.mb10} />
+      <Btn kind="sec" title="Back to home" onPress={onBack} style={s.mb10} />
 
       {/* Yellow note when the data could not be refreshed */}
       {offline && (

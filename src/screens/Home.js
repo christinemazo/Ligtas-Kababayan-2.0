@@ -127,12 +127,16 @@ export default function Home({ mine, onSos, onShelters, onStatus }) { // NEW: mi
         style={({ pressed }) => [st.linkRow, { opacity: pressed ? 0.75 : 1 }]}
       >
         {/* flex: 1 lets the text take all space except the arrow */}
-        <View style={{ flex: 1, paddingRight: 10 }}>
-          <Text style={st.linkTitle}>Find an evacuation shelter</Text>
+        <View style={{ flex: 1, paddingRight: 10 }}>     
+          <Text style={st.linkTitle}>
+            Find an evacuation shelter
+          </Text>
+          
           <Text style={[st.small, { marginTop: 5 }]}>
             View available shelters and safe locations.
           </Text>
         </View>
+        
         {/* Arrow on the right */}
         <Text style={st.chevron}>›</Text>
       </Pressable>
@@ -150,15 +154,3 @@ export default function Home({ mine, onSos, onShelters, onStatus }) { // NEW: mi
     </ScrollView> // NEW: was </View>
   );
 }
-
-/*
-UPDATE NI TL
-Goal of update: Butangan Status card sa home screen ONLY AFTER sending a help request.
---------What changed-------
-1. Import line 1: added ScrollView (Para scrollable for smaller devices).
-2. New import: STATUS and STEPS from ../constants.
-3. New StatusCard component above Home.
-4. Home's first line: now receives mine and onStatus.
-5. Outer wrapper: <View style={s.pad}> became <ScrollView contentContainerStyle={s.pad}>, and the last </View> became </ScrollView>.
-6. One new line between the navy header and the "Need rescue?" card: {mine && <StatusCard mine={mine} onPress={onStatus} />}.
-*/
