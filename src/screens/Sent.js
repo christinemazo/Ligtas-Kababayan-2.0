@@ -11,7 +11,7 @@ import {
 
 import { Btn, Card, Chip, Note, s } from '../ui';
 // HEADS, VULS = choice lists; STATUS = ['new','ack','done']; STEPS = labels; smsText = builds the SMS text
-import { HEADS, STATUS, STEPS, VULS, smsText } from '../constants';
+import { HEADS, NOTE_VULS, STATUS, STEPS, VULS, smsText } from '../constants';
 import { T, st } from './Styles';
 
 // mine = the SOS this phone sent (from App.js)
@@ -19,7 +19,18 @@ import { T, st } from './Styles';
 export default function Sent({ mine, onSave, onTryAgain, onHome }) {
   // Form fields start with whatever is already saved on the SOS
   const [head, setHead] = useState(mine.head || '');   // how many people
-  const [vul, setVul] = useState(mine.vul || []);      // vulnerable groups (can pick several)
+  
+  // const [vul, setVul] = useState(mine.vul || []); // vulnerable groups (can pick several)
+  
+  const baseOf = (v) => v.split(': ')[0];
+  const saved = mine.vul || [];
+  const [vul, setVul] = useState(saved.map(baseOf));
+  const [notes, setNotes] = useState(() =>
+  Object.fromEntries(
+    saved.filter((v) => v.includes(': ')).map((v) => [baseOf(v), v.slice(v.indexOf(': ') + 2)])
+  )
+  );      
+  
   const [name, setName] = useState(mine.name || '');
   const [phone, setPhone] = useState(mine.phone || '');
   const [desc, setDesc] = useState(mine.desc || '');   // landmark / instructions
@@ -34,8 +45,11 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
   // Save the details through App.js
   const save = async () => {
     setSaving(true);
-    try {
-      await onSave({ name, phone, head, vul, desc });
+    try {     
+      
+      const vulOut = vul.map((v) => (notes[v]?.trim() ? `${v}: ${notes[v].trim()}` : v));
+      await onSave({ name, phone, head, vul: vulOut, desc });
+      
     } finally {
       setSaving(false); // always turn the saving state off, even if saving failed
     }
@@ -259,6 +273,21 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
               />
             ))}
           </View>
+
+          {NOTE_VULS.filter((v) => vul.includes(v)).map((v) => (
+          <View key={v}>
+          <Text style={s.label}>{v} (optional)</Text>
+    <TextInput
+      style={s.input}
+      value={notes[v] || ''}
+      onChangeText={(t) => setNotes((n) => ({ ...n, [v]: t }))}
+      placeholder="Specify the condition"
+      placeholderTextColor={T.muted}
+      maxLength={100}
+      accessibilityLabel={`${v} details`}
+    />
+  </View>
+))}
 
           <Text style={s.label}>Full name</Text>
           <TextInput

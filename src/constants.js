@@ -11,7 +11,10 @@ export const LEVELS = [
 // Choices for "People with you"
 export const HEADS = ['1-5', '6-10', '11-20', '20+'];
 // Choices for "Anyone needing extra assistance?" (vulnerable groups)
-export const VULS = ['Senior', 'PWD', 'Child/Infant', 'Pregnant', 'Injured'];
+export const VULS = ['Senior', 'PWD', 'Child/Infant', 'Pregnant', 'Injured',
+  'Mental health condition', 'Medical condition'];
+// Chips that open an optional text field
+export const NOTE_VULS = ['Mental health condition', 'Medical condition'];
 // The three statuses stored in the database, in order
 export const STATUS = ['new', 'ack', 'done'];
 // The labels shown to the user for those statuses (same order: new, ack, done)
