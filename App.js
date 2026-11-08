@@ -10,6 +10,7 @@ import * as Crypto from 'expo-crypto';
 import { getStatus, submitReport, updateDetails } from './src/api';
 import { enqueue, startAutoFlush, updateQueued } from './src/queue';
 import { failKind } from './src/constants';
+import { getDeviceId } from './src/device';
 import { Note, s } from './src/ui';
 import Home from './src/screens/Home';
 import Sos from './src/screens/Sos';
@@ -42,6 +43,7 @@ export default function App() {
     const profile = JSON.parse((await AsyncStorage.getItem('lk_profile')) || '{}');
     const report = {
       clientId: Crypto.randomUUID(),
+      deviceId: await getDeviceId(), // same on every SOS from this phone; the server uses it for the limit
       level,
       lat: loc.lat,
       lng: loc.lng,
@@ -103,9 +105,7 @@ export default function App() {
 
   // Poll status while the sent screen is open
   useEffect(() => {
-    // New {
-    if ((scr !== 'sent' && scr !== 'home') || !mine?.id) return;
-    // }
+    if (scr !== 'sent' || !mine?.id) return;
     const id = mine.clientId;
     const timer = setInterval(async () => {
       if (AppState.currentState !== 'active') return;
@@ -139,17 +139,7 @@ export default function App() {
           </View>
         )}
 
-  
-      
-        {scr === 'home' && ( // New Home
-          <Home
-            mine={mine}
-            onSos={() => setScr('sos')}
-            onShelters={() => setScr('shelters')}
-            onStatus={() => setScr('sent')}
-          />
-        )}
-        
+        {scr === 'home' && <Home onSos={() => setScr('sos')} onShelters={() => setScr('shelters')} />}
         {scr === 'sos' && <Sos onBack={() => setScr('home')} onSend={sendSOS} />}
         {scr === 'sent' && mine && (
           <Sent
