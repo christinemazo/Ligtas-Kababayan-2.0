@@ -149,10 +149,14 @@ export function reportCard(r, { mapLink = false } = {}) {
   const head = r.head ? ` · ${esc(r.head)} people` : "";
   const vulnerable = r.vul.map((v) => `<span class="tag v">${esc(v)}</span>`).join("");
   const mapUrl = `https://www.google.com/maps?q=${r.lat},${r.lng}`;
-  const ackButton =
-    r.status === "new"
-      ? `<button class="btn sec" data-id="${r.id}" data-s="ack">Acknowledge</button>`
-      : `<span class="tag">Acknowledged</span>`;
+ const ackButton =
+  r.status === "new"
+    ? `<button type="button" class="btn ack-btn" data-id="${r.id}" data-s="ack">
+         Acknowledge
+       </button>`
+    : `<button type="button" class="btn ack-btn is-acknowledged" disabled>
+         ✓ Acknowledged
+       </button>`;
 
   return `
     <div class="card" id="rc${r.id}">
