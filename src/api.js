@@ -8,7 +8,7 @@ import { sb } from './supabase';
 function fail(error) {
   // Use the server's message, or the word 'network' if there is none
   const e = new Error(error.message || 'network');
-  e.permanent = /outside_area/.test(error.message || '') || /^2[23]/.test(error.code || '');
+  e.permanent = /outside_area|request_ongoing/.test(error.message || '') || /^2[23]/.test(error.code || '');
   throw e;
 }
 
@@ -29,6 +29,7 @@ export async function submitReport(r) {
       p_head: r.head || '',
       p_vul: r.vul || [],
       p_desc: r.desc || '',
+      p_device_id: r.deviceId || null, // lets the server see if this phone already has an open request
     })
   );
   if (error) fail(error);                    // throws; the caller decides to retry or give up
