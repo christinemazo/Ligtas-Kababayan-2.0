@@ -11,7 +11,7 @@ import {
 
 import { Btn, Card, Chip, Note, s } from '../ui';
 // HEADS, VULS = choice lists; STATUS = ['new','ack','done']; STEPS = labels; smsText = builds the SMS text
-import { HEADS, NOTE_VULS, STATUS, STEPS, VULS, smsText } from '../constants';
+import { HEADS, STATUS, STEPS, VULS, smsText } from '../constants';
 import { T, st } from './Styles';
 
 // mine = the SOS this phone sent (from App.js)
@@ -19,18 +19,7 @@ import { T, st } from './Styles';
 export default function Sent({ mine, onSave, onTryAgain, onHome }) {
   // Form fields start with whatever is already saved on the SOS
   const [head, setHead] = useState(mine.head || '');   // how many people
-  
-  // const [vul, setVul] = useState(mine.vul || []); // vulnerable groups (can pick several)
-  
-  const baseOf = (v) => v.split(': ')[0];
-  const saved = mine.vul || [];
-  const [vul, setVul] = useState(saved.map(baseOf));
-  const [notes, setNotes] = useState(() =>
-  Object.fromEntries(
-    saved.filter((v) => v.includes(': ')).map((v) => [baseOf(v), v.slice(v.indexOf(': ') + 2)])
-  )
-  );      
-  
+  const [vul, setVul] = useState(mine.vul || []);      // vulnerable groups (can pick several)
   const [name, setName] = useState(mine.name || '');
   const [phone, setPhone] = useState(mine.phone || '');
   const [desc, setDesc] = useState(mine.desc || '');   // landmark / instructions
@@ -45,11 +34,8 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
   // Save the details through App.js
   const save = async () => {
     setSaving(true);
-    try {     
-      
-      const vulOut = vul.map((v) => (notes[v]?.trim() ? `${v}: ${notes[v].trim()}` : v));
-      await onSave({ name, phone, head, vul: vulOut, desc });
-      
+    try {
+      await onSave({ name, phone, head, vul, desc });
     } finally {
       setSaving(false); // always turn the saving state off, even if saving failed
     }
@@ -85,7 +71,9 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
               {/* 'outside' = the pin is not inside any covered barangay */}
               {mine.error === 'outside'
                 ? 'Your location is outside the barangays covered by this system.'
-                : 'The server could not accept this request.'}
+                : mine.error === 'ongoing'
+                  ? 'You already have a request that is still open, so a new one was not sent. Rescuers already have your location. Please wait for help.'
+                  : 'The server could not accept this request.'}
             </Text>
           </View>
 
@@ -100,7 +88,8 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
           </Text>
         </Card>
 
-        <Btn title="Try again" onPress={onTryAgain} />
+        {/* Trying again would only be refused while the first request is open */}
+        {mine.error !== 'ongoing' && <Btn title="Try again" onPress={onTryAgain} />}
         <Btn kind="sec" title="Back to home" onPress={onHome} style={s.mt8} />
       </ScrollView>
     );
@@ -274,21 +263,6 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
             ))}
           </View>
 
-          {NOTE_VULS.filter((v) => vul.includes(v)).map((v) => (
-          <View key={v}>
-          <Text style={s.label}>{v} (optional)</Text>
-    <TextInput
-      style={s.input}
-      value={notes[v] || ''}
-      onChangeText={(t) => setNotes((n) => ({ ...n, [v]: t }))}
-      placeholder="Specify the condition"
-      placeholderTextColor={T.muted}
-      maxLength={100}
-      accessibilityLabel={`${v} details`}
-    />
-  </View>
-))}
-
           <Text style={s.label}>Full name</Text>
           <TextInput
             style={s.input}
@@ -331,7 +305,15 @@ export default function Sent({ mine, onSave, onTryAgain, onHome }) {
           />
         </Card>
 
-       
+        {/* Reminder that the app status is not a guarantee */}
+        <View style={[st.note, st.noteRed]}>
+          <Text style={[st.noteTitle, { color: T.red }]}>IMPORTANT</Text>
+          <Text style={st.noteBody}>
+            An app status does not guarantee that rescuers have received your
+            request. If you are in immediate danger, contact 911 or your local
+            emergency service if available, and follow official instructions.
+          </Text>
+        </View>
 
         <Btn kind="sec" title="Back to home" onPress={onHome} />
       </ScrollView>
