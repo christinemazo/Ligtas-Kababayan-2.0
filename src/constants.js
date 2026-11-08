@@ -11,10 +11,7 @@ export const LEVELS = [
 // Choices for "People with you"
 export const HEADS = ['1-5', '6-10', '11-20', '20+'];
 // Choices for "Anyone needing extra assistance?" (vulnerable groups)
-export const VULS = ['Senior', 'PWD', 'Child/Infant', 'Pregnant', 'Injured',
-  'Mental health condition', 'Medical condition'];
-// Chips that open an optional text field
-export const NOTE_VULS = ['Mental health condition', 'Medical condition'];
+export const VULS = ['Senior', 'PWD', 'Child/Infant', 'Pregnant', 'Injured'];
 // The three statuses stored in the database, in order
 export const STATUS = ['new', 'ack', 'done'];
 // The labels shown to the user for those statuses (same order: new, ack, done)
@@ -31,5 +28,11 @@ export const smsText = (m) => {
 };
 
 // Why the server refused an SOS for good
-// 'outside' = the pin is outside every barangay; anything else = 'rejected'
-export const failKind = (e) => (/outside_area/.test(e?.message || '') ? 'outside' : 'rejected');
+// 'outside' = the pin is outside every barangay; 'ongoing' = this phone already has an open request;
+// anything else = 'rejected'
+export const failKind = (e) => {
+  const m = e?.message || '';
+  if (/outside_area/.test(m)) return 'outside';
+  if (/request_ongoing/.test(m)) return 'ongoing';
+  return 'rejected';
+};
