@@ -17,6 +17,15 @@ import Sos from './src/screens/Sos';
 import Sent from './src/screens/Sent';
 import Shelters from './src/screens/Shelters';
 
+// A request counts as "open" until it is rescued, refused, or this many hours old.
+// Keep this the same as the time limit in the database (submit_report).
+const OPEN_HOURS = 3;
+const isOpen = (m) =>
+  !!m && !m.error && m.status !== 'done' && Date.now() - (m.createdAt || 0) < OPEN_HOURS * 3600 * 1000;
+
+// Keep the current request on the phone so it survives a reload or closing the app
+const saveMine = (m) => AsyncStorage.setItem('lk_active', JSON.stringify(m)).catch(() => {});
+
 export default function App() {
   const [scr, setScr] = useState('home'); // home | sos | sent | shelters
   const [mine, setMine] = useState(null); // the SOS this phone just sent
@@ -24,6 +33,8 @@ export default function App() {
   const [msg, setMsg] = useState('');
   const mineRef = useRef(null);
   const toastTimer = useRef(null);
+  const sendingRef = useRef(false); // true while an SOS is going out, so a second tap is ignored
+  const [ready, setReady] = useState(false); // true once the saved request has been loaded
 
   const toast = useCallback((text) => {
     setMsg(text);
@@ -36,10 +47,56 @@ export default function App() {
     if (mineRef.current?.clientId !== clientId) return;
     mineRef.current = { ...mineRef.current, ...patch };
     setMine(mineRef.current);
+    saveMine(mineRef.current);
   }, []);
 
+  // Load the request saved from the last time the app was open (so a reload keeps the status card)
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem('lk_active');
+        const saved = raw ? JSON.parse(raw) : null;
+        if (saved?.clientId && !saved.error && saved.status !== 'done') {
+          mineRef.current = { ...saved, sending: false };
+          setMine(mineRef.current);
+          if (saved.id) {
+            // refresh the status right away; a request that was rescued in the meantime is dropped
+            getStatus(saved.clientId)
+              .then((st) => {
+                if (st === 'done' && mineRef.current?.clientId === saved.clientId) {
+                  mineRef.current = null;
+                  setMine(null);
+                  AsyncStorage.removeItem('lk_active').catch(() => {});
+                } else if (st) {
+                  patchMine(saved.clientId, { status: st });
+                }
+              })
+              .catch(() => {});
+          }
+        } else if (saved) {
+          // it was rescued or refused last time: nothing to show any more
+          AsyncStorage.removeItem('lk_active').catch(() => {});
+        }
+      } catch {
+        // unreadable saved data: start with no request
+      }
+      setReady(true);
+    })();
+  }, [patchMine]);
+
+  // SOS button: if a request is still open, show its status instead of a new form
+  const openSos = () => {
+    if (isOpen(mineRef.current)) {
+      toast('You already have an open request. Showing its status.');
+      setScr('sent');
+    } else {
+      setScr('sos');
+    }
+  };
+
   // ----- SOS flow -----
-  const sendSOS = async (level, loc) => {
+  const sendNow = async (level, loc) => {
+    const previous = mineRef.current; // kept in case this one is refused because an earlier one is still open
     const profile = JSON.parse((await AsyncStorage.getItem('lk_profile')) || '{}');
     const report = {
       clientId: Crypto.randomUUID(),
@@ -53,19 +110,39 @@ export default function App() {
       vul: [],
       desc: loc.label || '', // a searched address becomes the landmark
     };
-    mineRef.current = { ...report, id: null, status: 'new', error: null, sending: true };
+    mineRef.current = { ...report, id: null, status: 'new', error: null, sending: true, createdAt: Date.now() };
     setMine(mineRef.current);
+    saveMine(mineRef.current);
     setScr('sent');
 
     try {
       const res = await submitReport(report);
       patchMine(report.clientId, { id: res.report_code, sending: false });
     } catch (e) {
-      if (e.permanent) patchMine(report.clientId, { error: failKind(e), sending: false });
-      else {
+      if (e.permanent) {
+        if (failKind(e) === 'ongoing' && previous && !previous.error) {
+          // an earlier request is still open: keep showing that one instead of an error
+          mineRef.current = previous;
+          setMine(previous);
+          toast('You already have an open request. Showing its status.');
+        } else {
+          patchMine(report.clientId, { error: failKind(e), sending: false });
+        }
+      } else {
         await enqueue(report); // offline or server down: saved on the phone
         patchMine(report.clientId, { sending: false });
       }
+    }
+  };
+
+  // Tapping Send twice quickly must not start two requests
+  const sendSOS = async (level, loc) => {
+    if (sendingRef.current) return;
+    sendingRef.current = true;
+    try {
+      await sendNow(level, loc);
+    } finally {
+      sendingRef.current = false;
     }
   };
 
@@ -88,24 +165,24 @@ export default function App() {
 
   // ----- background work -----
   // Offline queue: retry saved SOS when the signal returns
-  useEffect(
-    () =>
-      startAutoFlush(
-        (report, res) => {
-          patchMine(report.clientId, { id: res.report_code });
-          toast('Signal is back. Your SOS was sent.');
-        },
-        (report, e) => patchMine(report.clientId, { error: failKind(e) })
-      ),
-    [patchMine, toast]
-  );
+  // (starts only after the saved request is loaded, so a late send can still update it)
+  useEffect(() => {
+    if (!ready) return;
+    return startAutoFlush(
+      (report, res) => {
+        patchMine(report.clientId, { id: res.report_code });
+        toast('Signal is back. Your SOS was sent.');
+      },
+      (report, e) => patchMine(report.clientId, { error: failKind(e) })
+    );
+  }, [ready, patchMine, toast]);
 
   // Network banner
   useEffect(() => NetInfo.addEventListener((state) => setOffline(state.isConnected === false)), []);
 
-  // Poll status while the sent screen is open
+  // Poll status while the sent screen or the home screen (status card) is open
   useEffect(() => {
-    if (scr !== 'sent' || !mine?.id) return;
+    if ((scr !== 'sent' && scr !== 'home') || !mine?.id) return;
     const id = mine.clientId;
     const timer = setInterval(async () => {
       if (AppState.currentState !== 'active') return;
@@ -139,7 +216,14 @@ export default function App() {
           </View>
         )}
 
-        {scr === 'home' && <Home onSos={() => setScr('sos')} onShelters={() => setScr('shelters')} />}
+        {scr === 'home' && (
+          <Home
+            mine={mine}
+            onSos={openSos}
+            onShelters={() => setScr('shelters')}
+            onStatus={() => setScr('sent')}
+          />
+        )}
         {scr === 'sos' && <Sos onBack={() => setScr('home')} onSend={sendSOS} />}
         {scr === 'sent' && mine && (
           <Sent

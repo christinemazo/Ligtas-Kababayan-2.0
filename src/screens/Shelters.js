@@ -189,7 +189,7 @@ export default function Shelters({ onBack }) {
                   {left}
                 </Text>
                 <Text style={{ color: T.muted, fontSize: 11 }}>
-                  spaces remaining*
+                  spaces remaining
                 </Text>
               </View>
             </View>

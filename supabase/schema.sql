@@ -1,8 +1,10 @@
 -- =====================================================================
 -- LIGTAS KABABAYAN: DATABASE SCHEMA
--- RUN ORDER (new Supabase project):
-
+--   1. This file (schema.sql)
+--   2. calbayog_barangays.sql         -> the 157 real Calbayog barangay boundaries
+--   3. Create admin users, then run add_admin() (section 8)
 -- Without step 2 no barangay has a boundary, so every SOS is rejected as 'outside_area'.
+-- This file is safe to run again.
 
 -- =====================================================================
 -- 1. EXTENSIONS AND SEQUENCES
@@ -52,7 +54,7 @@ create table if not exists shelters (
 create table if not exists reports (
   id          bigint generated always as identity primary key,
   code        text unique default 'LK-' || to_char(now(), 'YYMM') || '-' || lpad(nextval('report_seq')::text, 4, '0'),
-  client_id   uuid unique not null,   -- random id made on the phone; acts as the citizen's secret
+  client_id   uuid unique not null,   -- random id made on the phone
   level       int not null check (level between 1 and 5),
   lat         float8 not null check (lat between -90 and 90),
   lng         float8 not null check (lng between -180 and 180),
@@ -64,6 +66,7 @@ create table if not exists reports (
   descr       text default '',
   address     text default '',   -- street address looked up by the admin dashboard
   source      text default 'app',
+  device_id   uuid,              -- random id made once per phone; used by the SOS limiter
   status      text default 'new' check (status in ('new', 'ack', 'done')),
   created_at  timestamptz default now()
 );
@@ -72,6 +75,7 @@ create table if not exists reports (
 alter table reports add column if not exists address   text default '';
 alter table reports add column if not exists status_by uuid references auth.users on delete set null;  -- which admin last changed the status
 alter table reports add column if not exists status_at timestamptz;
+alter table reports add column if not exists device_id uuid;
 
 -- =====================================================================
 -- 3. INDEXES
@@ -79,6 +83,7 @@ alter table reports add column if not exists status_at timestamptz;
 create index if not exists barangays_geom_idx   on barangays using gist (geom);  -- fast "which barangay is this point in"
 create index if not exists reports_queue_idx    on reports (barangay_id, status);
 create index if not exists admins_barangay_idx  on admins (barangay_id);
+create index if not exists reports_device_idx   on reports (device_id, created_at);  -- fast open-request lookup
 
 -- =====================================================================
 -- 4. SECURITY (Row Level Security: nobody reads anything unless a policy allows it)
@@ -128,7 +133,6 @@ create policy admin_update_shelters on shelters for update to authenticated
   using (barangay_id = my_barangay() or is_super());
 
 -- Only a super admin can ADD evacuation centers. Barangay admins can only update occupancy
--- (the update policy above) and nobody can delete (no delete policy exists).
 drop policy if exists super_insert_shelters on shelters;
 create policy super_insert_shelters on shelters for insert to authenticated
   with check (is_super());
@@ -143,7 +147,6 @@ grant  update (status, address)       on reports  to authenticated;
 grant  update (occupied, updated_at)  on shelters to authenticated;
 
 -- Automatically record WHICH admin acknowledged / rescued a report and WHEN.
--- Done in the database so the browser cannot fake it.
 create or replace function stamp_report_status()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
@@ -163,16 +166,21 @@ create trigger reports_stamp_status before update on reports
 -- =====================================================================
 do $$ begin
   alter publication supabase_realtime add table reports;
-exception when duplicate_object then null;   -- already added
+exception when duplicate_object then null;
 end $$;
 
 -- =====================================================================
 -- 6. CITIZEN FUNCTIONS (safe to retry: the same client_id never makes a duplicate)
 -- =====================================================================
+-- SOS limiter: a phone (device_id) cannot send a new SOS while its earlier one is still open.
+
+drop function if exists submit_report(uuid, int, float8, float8, text, text, text, text[], text);
+
 create or replace function submit_report(
   p_client_id uuid, p_level int, p_lat float8, p_lng float8,
   p_name text default '', p_phone text default '', p_head text default '',
-  p_vul text[] default '{}', p_desc text default '')
+  p_vul text[] default '{}', p_desc text default '',
+  p_device_id uuid default null)
 returns table(report_code text, report_status text)
 language plpgsql security definer set search_path = public, extensions as $$
 declare b int;
@@ -183,8 +191,19 @@ begin
   -- also acts as a prank / out-of-area filter
   if b is null then raise exception 'outside_area'; end if;
 
-  insert into reports(client_id, level, lat, lng, barangay_id, name, phone, head, vul, descr)
-  values (p_client_id, p_level, p_lat, p_lng, b, p_name, p_phone, p_head, p_vul, p_desc)
+  -- the limiter
+  if p_device_id is not null and exists (
+       select 1 from reports
+        where device_id = p_device_id
+          and client_id <> p_client_id
+          and status <> 'done'
+          and created_at > now() - interval '3 hours')   -- time limit: change here
+  then
+    raise exception 'request_ongoing';
+  end if;
+
+  insert into reports(client_id, level, lat, lng, barangay_id, name, phone, head, vul, descr, device_id)
+  values (p_client_id, p_level, p_lat, p_lng, b, p_name, p_phone, p_head, p_vul, p_desc, p_device_id)
   on conflict (client_id) do nothing;
 
   return query select r.code, r.status from reports r where r.client_id = p_client_id;
@@ -206,7 +225,7 @@ grant execute on function submit_report, update_report_details, get_report_statu
 
 -- =====================================================================
 -- 7. BARANGAY BOUNDARIES
--- The real boundaries live in import_calbayog_barangays.sql (157 barangays, run it after this file).
+-- The real boundaries live in calbayog_barangays.sql (157 barangays, run it after this file).
 -- It fills barangays.geom, which submit_report() uses to find the barangay of a pin.
 
 -- =====================================================================
@@ -242,7 +261,6 @@ begin
   return p_email || ' is now ' || p_role || coalesce(' of ' || p_barangay, '');
 end $$;
 
--- only you (SQL editor / service role) may run it, never the public app
 revoke all on function add_admin(text, text, text, text) from public, anon, authenticated;
 
 revoke insert, delete on shelters from authenticated;
