@@ -1,11 +1,5 @@
 -- =====================================================================
 -- LIGTAS KABABAYAN: DATABASE SCHEMA
---   1. This file (schema.sql)
---   2. calbayog_barangays.sql         -> the 157 real Calbayog barangay boundaries
---   3. Create admin users, then run add_admin() (section 8)
--- Without step 2 no barangay has a boundary, so every SOS is rejected as 'outside_area'.
--- This file is safe to run again.
-
 -- =====================================================================
 -- 1. EXTENSIONS AND SEQUENCES
 -- =====================================================================
@@ -18,9 +12,11 @@ create sequence if not exists report_seq;
 create table if not exists barangays (
   id   serial primary key,
   name text unique not null,
+  psgc bigint,                    -- official PSGC code, filled by import_barangays()
   geom geometry(MultiPolygon, 4326)
 );
 alter table barangays add column if not exists municipality text default 'Calbayog City';
+alter table barangays add column if not exists psgc bigint;
 
 -- One row per admin ACCOUNT. Many accounts can share the same barangay_id.
 create table if not exists admins (
@@ -81,6 +77,7 @@ alter table reports add column if not exists device_id uuid;
 -- 3. INDEXES
 -- =====================================================================
 create index if not exists barangays_geom_idx   on barangays using gist (geom);  -- fast "which barangay is this point in"
+create unique index if not exists barangays_psgc_key on barangays (psgc);          -- one row per official code
 create index if not exists reports_queue_idx    on reports (barangay_id, status);
 create index if not exists admins_barangay_idx  on admins (barangay_id);
 create index if not exists reports_device_idx   on reports (device_id, created_at);  -- fast open-request lookup
@@ -225,13 +222,46 @@ grant execute on function submit_report, update_report_details, get_report_statu
 
 -- =====================================================================
 -- 7. BARANGAY BOUNDARIES
--- The real boundaries live in calbayog_barangays.sql (157 barangays, run it after this file).
--- It fills barangays.geom, which submit_report() uses to find the barangay of a pin.
+-- =====================================================================
+drop function if exists import_barangays(jsonb, text);
+
+create or replace function import_barangays(
+  p_geojson jsonb, p_municipality text,
+  p_name_key text default 'name', p_code_key text default null)
+returns integer
+language plpgsql security definer set search_path = public, extensions as $$
+declare n integer;
+begin
+  if p_geojson->>'type' is distinct from 'FeatureCollection' then
+    raise exception 'Expected a GeoJSON FeatureCollection';
+  end if;
+  if coalesce(trim(p_municipality), '') = '' then
+    raise exception 'Give the municipality name';
+  end if;
+
+  insert into barangays(name, municipality, psgc, geom)
+  select trim(f->'properties'->>p_name_key),
+         trim(p_municipality),
+         case when p_code_key is null then null else (f->'properties'->>p_code_key)::bigint end,
+         st_multi(st_collectionextract(
+           st_makevalid(st_setsrid(st_geomfromgeojson((f->'geometry')::text), 4326)), 3))
+    from jsonb_array_elements(p_geojson->'features') as f
+   where coalesce(trim(f->'properties'->>p_name_key), '') <> ''
+     and f->>'geometry' is not null
+  on conflict (name) do update
+    set geom         = excluded.geom,
+        municipality = excluded.municipality,
+        psgc         = coalesce(excluded.psgc, barangays.psgc);
+
+  get diagnostics n = row_count;
+  return n;
+end $$;
+
+revoke all on function import_barangays(jsonb, text, text, text) from public, anon, authenticated;
+grant execute on function import_barangays(jsonb, text, text, text) to service_role;
 
 -- =====================================================================
 -- 8. ASSIGN ADMIN ACCOUNTS TO BARANGAYS
--- Steps: (1) Authentication > Users > Add user (email + password, tick "Auto confirm")
---        (2) run add_admin() below with that email
 -- =====================================================================
 create or replace function add_admin(
   p_email    text,
@@ -265,3 +295,43 @@ revoke all on function add_admin(text, text, text, text) from public, anon, auth
 
 revoke insert, delete on shelters from authenticated;
 grant  insert (name, barangay_id, capacity) on shelters to authenticated;
+
+-- =====================================================================
+-- 9. LOAD THE BARANGAY BOUNDARIES (runs only while no boundary is loaded yet)
+-- =====================================================================
+create extension if not exists http with schema extensions;
+
+create or replace function import_barangays_from_url(
+  p_url text, p_municipality text,
+  p_name_key text default 'name', p_code_key text default null)
+returns integer
+language plpgsql security definer set search_path = public, extensions as $$
+declare r extensions.http_response;
+begin
+  perform extensions.http_set_curlopt('CURLOPT_TIMEOUT', '60');
+  r := extensions.http_get(p_url);
+  if r.status <> 200 then
+    raise exception 'Could not download % (HTTP status %)', p_url, r.status;
+  end if;
+  return import_barangays(r.content::jsonb, p_municipality, p_name_key, p_code_key);
+end $$;
+
+revoke all on function import_barangays_from_url(text, text, text, text) from public, anon, authenticated;
+grant execute on function import_barangays_from_url(text, text, text, text) to service_role;
+
+do $$
+begin
+  if exists (select 1 from barangays where geom is not null) then
+    raise notice 'Barangay boundaries are already loaded, skipping the download.';
+  else
+    perform import_barangays_from_url(
+      'https://raw.githubusercontent.com/christinemazo/Ligtas-Kababayan-2.0/main/data/bgysubmuns-municity-806003000_0_01.json',
+      'Calbayog City', 'adm4_en', 'adm4_psgc');
+    raise notice 'Loaded % barangay boundaries.', (select count(*) from barangays where geom is not null);
+  end if;
+exception when others then
+  raise warning 'Barangay boundaries were NOT loaded: %. Load them with: node scripts/import-barangays.mjs', sqlerrm;
+end $$;
+
+-- Check: should show 157 barangays with a boundary and a code
+select count(*) as with_boundary, count(psgc) as with_code from barangays where geom is not null;
