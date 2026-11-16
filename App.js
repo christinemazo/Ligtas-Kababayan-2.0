@@ -1,6 +1,6 @@
 import 'react-native-url-polyfill/auto';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, BackHandler, Text, View } from 'react-native';
+import { AppState, BackHandler, Pressable, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -10,12 +10,14 @@ import * as Crypto from 'expo-crypto';
 import { getStatus, submitReport, updateDetails } from './src/api';
 import { enqueue, startAutoFlush, updateQueued } from './src/queue';
 import { failKind } from './src/constants';
-import { getDeviceId } from './src/device';
+import { sb } from './src/supabase';
+import { signOut as authSignOut } from './src/auth';
 import { Note, s } from './src/ui';
 import Home from './src/screens/Home';
 import Sos from './src/screens/Sos';
 import Sent from './src/screens/Sent';
 import Shelters from './src/screens/Shelters';
+import Account from './src/screens/Account';
 
 // A request counts as "open" until it is rescued, refused, or this many hours old.
 // Keep this the same as the time limit in the database (submit_report).
@@ -27,7 +29,7 @@ const isOpen = (m) =>
 const saveMine = (m) => AsyncStorage.setItem('lk_active', JSON.stringify(m)).catch(() => {});
 
 export default function App() {
-  const [scr, setScr] = useState('home'); // home | sos | sent | shelters
+  const [scr, setScr] = useState('home'); // home | sos | sent | shelters | account
   const [mine, setMine] = useState(null); // the SOS this phone just sent
   const [offline, setOffline] = useState(false);
   const [msg, setMsg] = useState('');
@@ -35,6 +37,9 @@ export default function App() {
   const toastTimer = useRef(null);
   const sendingRef = useRef(false); // true while an SOS is going out, so a second tap is ignored
   const [ready, setReady] = useState(false); // true once the saved request has been loaded
+  const [user, setUser] = useState(null); // the signed-in citizen (null = signed out)
+  const afterLogin = useRef('home'); // where to go after signing in: 'sos' or 'home'
+  const userId = user?.id ?? null;
 
   const toast = useCallback((text) => {
     setMsg(text);
@@ -48,6 +53,23 @@ export default function App() {
     mineRef.current = { ...mineRef.current, ...patch };
     setMine(mineRef.current);
     saveMine(mineRef.current);
+  }, []);
+
+  // Who is signed in? The session is kept on the phone, so the citizen stays signed in.
+  useEffect(() => {
+    sb.auth.getSession().then(({ data }) => setUser(data.session?.user ?? null));
+    const { data } = sb.auth.onAuthStateChange((_event, session) => setUser(session?.user ?? null));
+    return () => data.subscription.unsubscribe();
+  }, []);
+
+  // Renew the sign-in only while the app is open
+  useEffect(() => {
+    sb.auth.startAutoRefresh();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') sb.auth.startAutoRefresh();
+      else sb.auth.stopAutoRefresh();
+    });
+    return () => sub.remove();
   }, []);
 
   // Load the request saved from the last time the app was open (so a reload keeps the status card)
@@ -86,6 +108,12 @@ export default function App() {
 
   // SOS button: if a request is still open, show its status instead of a new form
   const openSos = () => {
+    if (!user) {
+      // An account is needed to send an SOS
+      afterLogin.current = 'sos';
+      setScr('account');
+      return;
+    }
     if (isOpen(mineRef.current)) {
       toast('You already have an open request. Showing its status.');
       setScr('sent');
@@ -94,17 +122,35 @@ export default function App() {
     }
   };
 
+  const goSignIn = () => {
+    afterLogin.current = 'home';
+    setScr('account');
+  };
+
+  const handleSignOut = async () => {
+    const m = mineRef.current;
+    if (m && !m.id && !m.error) {
+      toast('Your SOS is still waiting to send. Sign out after it is sent.');
+      return;
+    }
+    await authSignOut().catch(() => {});
+    mineRef.current = null;
+    setMine(null);
+    AsyncStorage.removeItem('lk_active').catch(() => {});
+    setScr('home');
+    toast('Signed out');
+  };
+
   // ----- SOS flow -----
   const sendNow = async (level, loc) => {
     const previous = mineRef.current; // kept in case this one is refused because an earlier one is still open
     const profile = JSON.parse((await AsyncStorage.getItem('lk_profile')) || '{}');
     const report = {
       clientId: Crypto.randomUUID(),
-      deviceId: await getDeviceId(), // same on every SOS from this phone; the server uses it for the limit
       level,
       lat: loc.lat,
       lng: loc.lng,
-      name: profile.name || '',
+      name: profile.name || user?.user_metadata?.full_name || '',
       phone: profile.phone || '',
       head: '',
       vul: [],
@@ -167,7 +213,7 @@ export default function App() {
   // Offline queue: retry saved SOS when the signal returns
   // (starts only after the saved request is loaded, so a late send can still update it)
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !userId) return; // saved SOS are sent only while signed in
     return startAutoFlush(
       (report, res) => {
         patchMine(report.clientId, { id: res.report_code });
@@ -175,7 +221,7 @@ export default function App() {
       },
       (report, e) => patchMine(report.clientId, { error: failKind(e) })
     );
-  }, [ready, patchMine, toast]);
+  }, [ready, userId, patchMine, toast]);
 
   // Network banner
   useEffect(() => NetInfo.addEventListener((state) => setOffline(state.isConnected === false)), []);
@@ -217,6 +263,15 @@ export default function App() {
         )}
 
         {scr === 'home' && (
+          <View style={s.bannerWrap}>
+            <Pressable onPress={user ? handleSignOut : goSignIn} accessibilityRole="button">
+              <Text style={{ color: '#62758A', fontSize: 13, textAlign: 'right' }}>
+                {user ? `Signed in as ${user.email}  ·  Sign out` : 'Sign in or create an account'}
+              </Text>
+            </Pressable>
+          </View>
+        )}
+        {scr === 'home' && (
           <Home
             mine={mine}
             onSos={openSos}
@@ -235,6 +290,15 @@ export default function App() {
           />
         )}
         {scr === 'shelters' && <Shelters onBack={() => setScr('home')} />}
+        {scr === 'account' && (
+          <Account
+            onBack={() => setScr('home')}
+            onDone={() => {
+              setScr(afterLogin.current === 'sos' ? 'sos' : 'home');
+              afterLogin.current = 'home';
+            }}
+          />
+        )}
 
         {msg ? (
           <View style={s.toast}>
