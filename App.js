@@ -78,7 +78,7 @@ export default function App() {
       try {
         const raw = await AsyncStorage.getItem('lk_active');
         const saved = raw ? JSON.parse(raw) : null;
-        if (saved?.clientId && !saved.error && saved.status !== 'done') {
+        if (saved?.clientId && saved.userId && !saved.error && saved.status !== 'done') {
           mineRef.current = { ...saved, sending: false };
           setMine(mineRef.current);
           if (saved.id) {
@@ -96,7 +96,7 @@ export default function App() {
               .catch(() => {});
           }
         } else if (saved) {
-          // it was rescued or refused last time: nothing to show any more
+          // rescued, refused, or sent before accounts existed (no owner): nothing to show any more
           AsyncStorage.removeItem('lk_active').catch(() => {});
         }
       } catch {
@@ -156,7 +156,7 @@ export default function App() {
       vul: [],
       desc: loc.label || '', // a searched address becomes the landmark
     };
-    mineRef.current = { ...report, id: null, status: 'new', error: null, sending: true, createdAt: Date.now() };
+    mineRef.current = { ...report, id: null, status: 'new', error: null, sending: true, createdAt: Date.now(), userId: user?.id };
     setMine(mineRef.current);
     saveMine(mineRef.current);
     setScr('sent');
@@ -273,7 +273,7 @@ export default function App() {
         )}
         {scr === 'home' && (
           <Home
-            mine={mine}
+            mine={user && mine?.userId === user.id ? mine : null} // only the signed-in owner sees the card
             onSos={openSos}
             onShelters={() => setScr('shelters')}
             onStatus={() => setScr('sent')}

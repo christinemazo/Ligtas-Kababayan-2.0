@@ -66,7 +66,7 @@ export default function Account({ onDone, onBack }) {
             style={s.input}
             value={email}
             onChangeText={setEmail}
-            placeholder="you@example.com"
+            placeholder="Email address"
             placeholderTextColor={T.muted}
             accessibilityLabel="Email"
             keyboardType="email-address"

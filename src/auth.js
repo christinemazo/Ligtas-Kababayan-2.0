@@ -3,7 +3,7 @@ import { sb } from './supabase';
 
 // Turns Supabase's messages into short sentences a citizen can act on
 function friendly(message = '') {
-  if (/invalid login credentials/i.test(message)) return 'Wrong email or password.';
+  if (/invalid login credentials/i.test(message)) return 'Wrong email or password. If you have no account yet, tap "Create an account".';
   if (/already registered|already been registered/i.test(message)) return 'This email already has an account. Sign in instead.';
   if (/password should be at least|weak password/i.test(message)) return 'Choose a stronger password (at least 6 characters).';
   if (/rate limit/i.test(message)) return 'Too many attempts. Please wait a few minutes and try again.';
