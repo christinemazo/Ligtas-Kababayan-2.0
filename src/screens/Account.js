@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons'; 
+import { Ionicons } from '@expo/vector-icons';
 
 import { Btn, Card, s } from '../ui';
 import { sendResetCode, setNewPassword, signIn, signUp, verifyResetCode } from '../auth';

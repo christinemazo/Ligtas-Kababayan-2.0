@@ -1,42 +1,35 @@
 -- =====================================================================
--- LIGTAS KABABAYAN: DATABASE SCHEMA
+-- LIGTAS KABABAYAN: DATABASE SCHEMA  (PostgreSQL + PostGIS Supabase)
 -- =====================================================================
--- 1. EXTENSIONS AND SEQUENCES
+
+-- =====================================================================
+-- 1. EXTENSIONS
 -- =====================================================================
 create extension if not exists postgis;
-create sequence if not exists report_seq;
 
 -- =====================================================================
 -- 2. TABLES
 -- =====================================================================
-create table if not exists barangays (
-  id   serial primary key,
-  name text unique not null,
-  psgc bigint,                    -- official PSGC code, filled by import_barangays()
-  geom geometry(MultiPolygon, 4326)
-);
-alter table barangays add column if not exists municipality text default 'Calbayog City';
-alter table barangays add column if not exists psgc bigint;
+create sequence if not exists report_seq;
 
--- One row per admin ACCOUNT. Many accounts can share the same barangay_id.
+create table if not exists barangays (
+  id           serial primary key,
+  name         text unique not null,
+  municipality text,
+  psgc         bigint,                             
+  geom         geometry(MultiPolygon, 4326)
+);
+
+
 create table if not exists admins (
   user_id     uuid primary key references auth.users on delete cascade,
-  barangay_id int references barangays
+  barangay_id int references barangays,
+  role        text not null default 'barangay_admin',
+  full_name   text default '',
+  created_at  timestamptz default now(),
+  constraint admins_role_chk     check (role in ('super_admin', 'barangay_admin')),
+  constraint admins_barangay_chk check (role = 'super_admin' or barangay_id is not null)
 );
-alter table admins add column if not exists role       text not null default 'barangay_admin';
-alter table admins add column if not exists full_name  text default '';
-alter table admins add column if not exists created_at timestamptz default now();
-
-do $$ begin
-  alter table admins add constraint admins_role_chk
-    check (role in ('super_admin', 'barangay_admin'));
-exception when duplicate_object then null; end $$;
-
--- a barangay admin MUST have a barangay; a super admin does not need one
-do $$ begin
-  alter table admins add constraint admins_barangay_chk
-    check (role = 'super_admin' or barangay_id is not null);
-exception when duplicate_object then null; end $$;
 
 create table if not exists shelters (
   id          serial primary key,
@@ -50,7 +43,8 @@ create table if not exists shelters (
 create table if not exists reports (
   id          bigint generated always as identity primary key,
   code        text unique default 'LK-' || to_char(now(), 'YYMM') || '-' || lpad(nextval('report_seq')::text, 4, '0'),
-  client_id   uuid unique not null,   -- random id made on the phone
+  client_id   uuid unique not null,
+  user_id     uuid references auth.users on delete set null, 
   level       int not null check (level between 1 and 5),
   lat         float8 not null check (lat between -90 and 90),
   lng         float8 not null check (lng between -180 and 180),
@@ -60,63 +54,69 @@ create table if not exists reports (
   head        text default '',
   vul         text[] default '{}',
   descr       text default '',
-  address     text default '',   -- street address looked up by the admin dashboard
+  address     text default '',    
   source      text default 'app',
-  device_id   uuid,              -- random id made once per phone; used by the SOS limiter
-  status      text default 'new' check (status in ('new', 'ack', 'done')),
+  status      text not null default 'new' check (status in ('new', 'ack', 'done')),
+  status_by   uuid references auth.users on delete set null,
+  status_at   timestamptz,
   created_at  timestamptz default now()
 );
 
--- for databases created before these columns existed
-alter table reports add column if not exists address   text default '';
-alter table reports add column if not exists status_by uuid references auth.users on delete set null;  -- which admin last changed the status
-alter table reports add column if not exists status_at timestamptz;
-alter table reports add column if not exists device_id uuid;
+alter table barangays add column if not exists municipality text;
+alter table barangays add column if not exists psgc         bigint;
+alter table barangays alter column municipality drop default;
+alter table admins    add column if not exists role         text not null default 'barangay_admin';
+alter table admins    add column if not exists full_name    text default '';
+alter table admins    add column if not exists created_at   timestamptz default now();
+alter table reports   add column if not exists user_id      uuid references auth.users on delete set null;
+alter table reports   add column if not exists address      text default '';
+alter table reports   add column if not exists status_by    uuid references auth.users on delete set null;
+alter table reports   add column if not exists status_at    timestamptz;
+
+do $$ begin
+  alter table admins add constraint admins_role_chk check (role in ('super_admin', 'barangay_admin'));
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  alter table admins add constraint admins_barangay_chk check (role = 'super_admin' or barangay_id is not null);
+exception when duplicate_object then null; end $$;
 
 -- =====================================================================
 -- 3. INDEXES
 -- =====================================================================
-create index if not exists barangays_geom_idx   on barangays using gist (geom);  -- fast "which barangay is this point in"
-create unique index if not exists barangays_psgc_key on barangays (psgc);          -- one row per official code
-create index if not exists reports_queue_idx    on reports (barangay_id, status);
-create index if not exists admins_barangay_idx  on admins (barangay_id);
-create index if not exists reports_device_idx   on reports (device_id, created_at);  -- fast open-request lookup
+create index        if not exists barangays_geom_idx on barangays using gist (geom); 
+create unique index if not exists barangays_psgc_key on barangays (psgc);
+create index        if not exists admins_barangay_idx on admins (barangay_id);
+create index        if not exists reports_queue_idx  on reports (barangay_id, status); 
+create index        if not exists reports_user_idx   on reports (user_id, created_at); 
 
 -- =====================================================================
--- 4. SECURITY (Row Level Security: nobody reads anything unless a policy allows it)
+-- 4. SECURITY 
 -- =====================================================================
 alter table barangays enable row level security;
 alter table admins    enable row level security;
 alter table shelters  enable row level security;
 alter table reports   enable row level security;
 
--- The barangay the logged-in admin belongs to (null for citizens and super admins)
 create or replace function my_barangay()
 returns int language sql stable security definer set search_path = public as
 $$ select barangay_id from admins where user_id = (select auth.uid()) $$;
 
--- True if the logged-in user is a super admin (e.g. city DRRMO)
 create or replace function is_super()
 returns boolean language sql stable security definer set search_path = public as
 $$ select exists (select 1 from admins
                    where user_id = (select auth.uid()) and role = 'super_admin') $$;
 
--- Public read
 drop policy if exists barangays_public on barangays;
 create policy barangays_public on barangays for select using (true);
 
 drop policy if exists shelters_public on shelters;
 create policy shelters_public on shelters for select using (true);
 
--- Admins see themselves and the other admins of their own barangay (super admin sees all)
-drop policy if exists admins_self on admins;
 drop policy if exists admins_team on admins;
 create policy admins_team on admins for select to authenticated
-  using (user_id = (select auth.uid())
-         or barangay_id = my_barangay()
-         or is_super());
+  using (user_id = (select auth.uid()) or barangay_id = my_barangay() or is_super());
 
--- Admins read and update only their own barangay's reports and shelters
 drop policy if exists admin_read_reports on reports;
 create policy admin_read_reports on reports for select to authenticated
   using (barangay_id = my_barangay() or is_super());
@@ -129,21 +129,18 @@ drop policy if exists admin_update_shelters on shelters;
 create policy admin_update_shelters on shelters for update to authenticated
   using (barangay_id = my_barangay() or is_super());
 
--- Only a super admin can ADD evacuation centers. Barangay admins can only update occupancy
 drop policy if exists super_insert_shelters on shelters;
 create policy super_insert_shelters on shelters for insert to authenticated
   with check (is_super());
-grant usage, select on sequence shelters_id_seq to authenticated;
 
--- Citizens (anon) have NO direct access to reports. They use the functions in section 6.
-
--- Admins can only change what the dashboard needs: report status, shelter occupancy
 revoke update on reports  from authenticated;
 revoke update on shelters from authenticated;
-grant  update (status, address)       on reports  to authenticated;
-grant  update (occupied, updated_at)  on shelters to authenticated;
+grant  update (status, address)      on reports  to authenticated;
+grant  update (occupied, updated_at) on shelters to authenticated;
+revoke insert, delete on shelters from authenticated;
+grant  insert (name, barangay_id, capacity) on shelters to authenticated;
+grant  usage, select on sequence shelters_id_seq to authenticated;
 
--- Automatically record WHICH admin acknowledged / rescued a report and WHEN.
 create or replace function stamp_report_status()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
@@ -159,7 +156,7 @@ create trigger reports_stamp_status before update on reports
   for each row execute function stamp_report_status();
 
 -- =====================================================================
--- 5. REALTIME (live updates for the admin page)
+-- 5. REALTIME  (live updates for the admin dashboard)
 -- =====================================================================
 do $$ begin
   alter publication supabase_realtime add table reports;
@@ -167,31 +164,32 @@ exception when duplicate_object then null;
 end $$;
 
 -- =====================================================================
--- 6. CITIZEN FUNCTIONS (safe to retry: the same client_id never makes a duplicate)
+-- 6. CITIZEN FUNCTIONS  (signed-in users only)
 -- =====================================================================
--- SOS limiter: a phone (device_id) cannot send a new SOS while its earlier one is still open.
-
+drop function if exists submit_report(uuid, int, float8, float8, text, text, text, text[], text, uuid);  -- old version
 drop function if exists submit_report(uuid, int, float8, float8, text, text, text, text[], text);
 
 create or replace function submit_report(
   p_client_id uuid, p_level int, p_lat float8, p_lng float8,
   p_name text default '', p_phone text default '', p_head text default '',
-  p_vul text[] default '{}', p_desc text default '',
-  p_device_id uuid default null)
+  p_vul text[] default '{}', p_desc text default '')
 returns table(report_code text, report_status text)
 language plpgsql security definer set search_path = public, extensions as $$
-declare b int;
+declare
+  uid uuid := auth.uid();
+  b   int;
 begin
+  if uid is null then raise exception 'login_required'; end if;
+
+  -- which barangay is the pin in? Also keeps out-of-area and prank requests out.
   select id into b from barangays
    where st_contains(geom, st_setsrid(st_point(p_lng, p_lat), 4326)) limit 1;
-
-  -- also acts as a prank / out-of-area filter
   if b is null then raise exception 'outside_area'; end if;
 
   -- the limiter
-  if p_device_id is not null and exists (
+  if exists (
        select 1 from reports
-        where device_id = p_device_id
+        where user_id = uid
           and client_id <> p_client_id
           and status <> 'done'
           and created_at > now() - interval '3 hours')   -- time limit: change here
@@ -199,31 +197,68 @@ begin
     raise exception 'request_ongoing';
   end if;
 
-  insert into reports(client_id, level, lat, lng, barangay_id, name, phone, head, vul, descr, device_id)
-  values (p_client_id, p_level, p_lat, p_lng, b, p_name, p_phone, p_head, p_vul, p_desc, p_device_id)
+  insert into reports(client_id, user_id, level, lat, lng, barangay_id, name, phone, head, vul, descr)
+  values (p_client_id, uid, p_level, p_lat, p_lng, b,
+          left(p_name, 100), left(p_phone, 30), left(p_head, 20),
+          coalesce(p_vul[1:10], '{}'), left(p_desc, 500))
   on conflict (client_id) do nothing;
 
-  return query select r.code, r.status from reports r where r.client_id = p_client_id;
+  return query select r.code, r.status from reports r where r.client_id = p_client_id and r.user_id = uid;
 end $$;
 
 create or replace function update_report_details(
   p_client_id uuid, p_name text, p_phone text, p_head text, p_vul text[], p_desc text)
 returns void language sql security definer set search_path = public as $$
   update reports
-     set name = p_name, phone = p_phone, head = p_head, vul = p_vul, descr = p_desc
-   where client_id = p_client_id;
+     set name = left(p_name, 100), phone = left(p_phone, 30), head = left(p_head, 20),
+         vul = coalesce(p_vul[1:10], '{}'), descr = left(p_desc, 500)
+   where client_id = p_client_id and user_id = (select auth.uid());
 $$;
 
 create or replace function get_report_status(p_client_id uuid)
 returns text language sql security definer set search_path = public as
-$$ select status from reports where client_id = p_client_id $$;
+$$ select status from reports where client_id = p_client_id and user_id = (select auth.uid()) $$;
 
-grant execute on function submit_report, update_report_details, get_report_status to anon, authenticated;
+-- Signed-in users only (nothing here is open to anonymous callers)
+revoke all on function submit_report(uuid, int, float8, float8, text, text, text, text[], text) from public, anon;
+revoke all on function update_report_details(uuid, text, text, text, text[], text)               from public, anon;
+revoke all on function get_report_status(uuid)                                                   from public, anon;
+grant execute on function submit_report(uuid, int, float8, float8, text, text, text, text[], text) to authenticated;
+grant execute on function update_report_details(uuid, text, text, text, text[], text)               to authenticated;
+grant execute on function get_report_status(uuid)                                                   to authenticated;
 
 -- =====================================================================
--- 7. BARANGAY BOUNDARIES
+-- 7. ADMIN FUNCTIONS 
 -- =====================================================================
-drop function if exists import_barangays(jsonb, text);
+create or replace function add_admin(
+  p_email    text,
+  p_barangay text default null,
+  p_role     text default 'barangay_admin',
+  p_name     text default '')
+returns text language plpgsql security definer set search_path = public, auth as $$
+declare u uuid; b int;
+begin
+  select id into u from auth.users where lower(email) = lower(p_email);
+  if u is null then
+    raise exception 'No user with email %. Create it in Authentication > Users first.', p_email;
+  end if;
+
+  if p_role = 'barangay_admin' then
+    select id into b from barangays where name = p_barangay;
+    if b is null then raise exception 'Barangay "%" not found', p_barangay; end if;
+  end if;
+
+  insert into admins(user_id, barangay_id, role, full_name)
+  values (u, b, p_role, p_name)
+  on conflict (user_id) do update
+    set barangay_id = excluded.barangay_id,
+        role        = excluded.role,
+        full_name   = excluded.full_name;
+
+  return p_email || ' is now ' || p_role || coalesce(' of ' || p_barangay, '');
+end $$;
+
+revoke all on function add_admin(text, text, text, text) from public, anon, authenticated;
 
 create or replace function import_barangays(
   p_geojson jsonb, p_municipality text,
@@ -260,78 +295,3 @@ end $$;
 revoke all on function import_barangays(jsonb, text, text, text) from public, anon, authenticated;
 grant execute on function import_barangays(jsonb, text, text, text) to service_role;
 
--- =====================================================================
--- 8. ASSIGN ADMIN ACCOUNTS TO BARANGAYS
--- =====================================================================
-create or replace function add_admin(
-  p_email    text,
-  p_barangay text default null,
-  p_role     text default 'barangay_admin',
-  p_name     text default '')
-returns text language plpgsql security definer set search_path = public, auth as $$
-declare u uuid; b int;
-begin
-  select id into u from auth.users where lower(email) = lower(p_email);
-  if u is null then
-    raise exception 'No user with email %. Create it in Authentication > Users first.', p_email;
-  end if;
-
-  if p_role = 'barangay_admin' then
-    select id into b from barangays where name = p_barangay;
-    if b is null then raise exception 'Barangay "%" not found', p_barangay; end if;
-  end if;
-
-  insert into admins(user_id, barangay_id, role, full_name)
-  values (u, b, p_role, p_name)
-  on conflict (user_id) do update
-    set barangay_id = excluded.barangay_id,
-        role        = excluded.role,
-        full_name   = excluded.full_name;
-
-  return p_email || ' is now ' || p_role || coalesce(' of ' || p_barangay, '');
-end $$;
-
-revoke all on function add_admin(text, text, text, text) from public, anon, authenticated;
-
-revoke insert, delete on shelters from authenticated;
-grant  insert (name, barangay_id, capacity) on shelters to authenticated;
-
--- =====================================================================
--- 9. LOAD THE BARANGAY BOUNDARIES (runs only while no boundary is loaded yet)
--- =====================================================================
-create extension if not exists http with schema extensions;
-
-create or replace function import_barangays_from_url(
-  p_url text, p_municipality text,
-  p_name_key text default 'name', p_code_key text default null)
-returns integer
-language plpgsql security definer set search_path = public, extensions as $$
-declare r extensions.http_response;
-begin
-  perform extensions.http_set_curlopt('CURLOPT_TIMEOUT', '60');
-  r := extensions.http_get(p_url);
-  if r.status <> 200 then
-    raise exception 'Could not download % (HTTP status %)', p_url, r.status;
-  end if;
-  return import_barangays(r.content::jsonb, p_municipality, p_name_key, p_code_key);
-end $$;
-
-revoke all on function import_barangays_from_url(text, text, text, text) from public, anon, authenticated;
-grant execute on function import_barangays_from_url(text, text, text, text) to service_role;
-
-do $$
-begin
-  if exists (select 1 from barangays where geom is not null) then
-    raise notice 'Barangay boundaries are already loaded, skipping the download.';
-  else
-    perform import_barangays_from_url(
-      'https://raw.githubusercontent.com/christinemazo/Ligtas-Kababayan-2.0/main/data/bgysubmuns-municity-806003000_0_01.json',
-      'Calbayog City', 'adm4_en', 'adm4_psgc');
-    raise notice 'Loaded % barangay boundaries.', (select count(*) from barangays where geom is not null);
-  end if;
-exception when others then
-  raise warning 'Barangay boundaries were NOT loaded: %. Load them with: node scripts/import-barangays.mjs', sqlerrm;
-end $$;
-
--- Check: should show 157 barangays with a boundary and a code
-select count(*) as with_boundary, count(psgc) as with_code from barangays where geom is not null;
