@@ -2,7 +2,7 @@
 import { sb } from './supabase';
 
 // Supabase error pattern -> clear message shown to the user. The first match wins.
-const FRIENDLY = [
+const REGISTER = [
   [/invalid login credentials/i, 'Incorrect email or password. If you do not have an account, select "Create an account".'],
   [/already registered|already been registered/i, 'An account with this email address already exists. Please sign in.'],
   [/different from the old password/i, 'The new password must be different from the current password.'],
@@ -12,7 +12,7 @@ const FRIENDLY = [
   [/network|fetch|timeout/i, 'No internet connection. Connect to a network and try again.'],
 ];
 
-const friendly = (message = '') =>
+const register = (message = '') =>
   FRIENDLY.find(([pattern]) => pattern.test(message))?.[1] || message || 'An unexpected error occurred. Please try again.';
 
 // Every Supabase call below uses this: if there is an error, throw it with a friendly message.
